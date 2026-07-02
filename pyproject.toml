@@ -13,7 +13,7 @@ dependencies = [
     "linkml-runtime>=1.8.0",
     "numpy>=1.24.3",
     "h5py>=3.9.0",
-    "zarr>=3.16.1",
+    "zarr>=2.16.1",
     "xarray>=2024.1.1,<2025",
     "ruamel-yaml>=0.18.6,<0.19",
     "importlib_metadata",
