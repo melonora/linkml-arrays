@@ -3,7 +3,9 @@
 from pathlib import Path
 from typing import Union
 
+import numpy as np
 import zarr
+from zarr.storage import LocalStore
 from linkml_runtime import SchemaView
 from linkml_runtime.dumpers.dumper_root import Dumper
 from linkml_runtime.utils.yamlutils import YAMLRoot
@@ -11,7 +13,7 @@ from pydantic import BaseModel
 
 
 def _iterate_element(
-    element: Union[YAMLRoot, BaseModel], schemaview: SchemaView, group: zarr.hierarchy.Group = None
+    element: Union[YAMLRoot, BaseModel], schemaview: SchemaView, group: zarr.Group = None
 ):
     """Recursively iterate through the elements of a LinkML model and save them.
 
@@ -25,7 +27,7 @@ def _iterate_element(
         found_slot = schemaview.induced_slot(k, element_type)
         if found_slot.array:
             # save the numpy array to a zarr array
-            group.create_dataset(found_slot.name, data=v)
+            group.create_array(found_slot.name, data=np.array(v))
         else:
             if isinstance(v, BaseModel):
                 # create a subgroup and recurse
@@ -48,6 +50,6 @@ class ZarrDirectoryStoreDumper(Dumper):
         **kwargs,
     ):
         """Dump the element to a Zarr directory store."""
-        store = zarr.DirectoryStore(output_file_path)
+        store = LocalStore(output_file_path)
         root = zarr.group(store=store, overwrite=True)
         _iterate_element(element, schemaview, root)
