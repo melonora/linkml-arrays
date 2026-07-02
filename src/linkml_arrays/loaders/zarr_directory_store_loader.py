@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 
 def _iterate_element(
-    group: zarr.hierarchy.Group, element_type: ClassDefinition, schemaview: SchemaView
+    group: zarr.Group, element_type: ClassDefinition, schemaview: SchemaView
 ) -> dict:
     """Recursively iterate through the elements of a LinkML model and load them into a dict.
 
@@ -21,14 +21,14 @@ def _iterate_element(
     for k, v in group.attrs.items():
         ret_dict[k] = v
 
-    for k, v in group.items():
+    for k, v in zip(group.group_keys(), group.group_values()):
         found_slot = schemaview.induced_slot(
             k, element_type.name
         )  # assumes the slot name has been written as the name which is OK for now.
         if found_slot.array:
             assert isinstance(v, zarr.Array)
             v = v[()]  # read all the values into memory  # TODO support lazy loading
-        elif isinstance(v, zarr.hierarchy.Group):  # it's a subgroup
+        elif isinstance(v, zarr.Group):  # it's a subgroup
             found_slot_range = schemaview.get_class(found_slot.range)
             v = _iterate_element(v, found_slot_range, schemaview)
         # else: do not transform v
