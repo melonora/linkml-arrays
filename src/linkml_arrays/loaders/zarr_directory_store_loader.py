@@ -19,9 +19,10 @@ def _iterate_element(
     """
     ret_dict = dict()
     for k, v in group.attrs.items():
+        print(k)
         ret_dict[k] = v
 
-    for k, v in zip(group.group_keys(), group.group_values()):
+    for k, v in group.members():
         found_slot = schemaview.induced_slot(
             k, element_type.name
         )  # assumes the slot name has been written as the name which is OK for now.
