@@ -2,20 +2,10 @@ from __future__ import annotations
 
 import re
 import sys
-from datetime import (
-    date,
-    datetime,
-    time
-)
+from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
-from typing import (
-    Any,
-    ClassVar,
-    Literal,
-    Optional,
-    Union
-)
+from typing import Any, ClassVar, Literal, Optional, Union
 
 from pydantic import (
     BaseModel,
@@ -26,9 +16,8 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     conlist,
     field_validator,
-    model_serializer
+    model_serializer,
 )
-
 
 metamodel_version = "1.11.0"
 version = "None"

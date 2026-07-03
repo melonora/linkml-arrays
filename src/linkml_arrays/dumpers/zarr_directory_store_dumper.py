@@ -5,11 +5,11 @@ from typing import Union
 
 import numpy as np
 import zarr
-from zarr.storage import LocalStore
 from linkml_runtime import SchemaView
 from linkml_runtime.dumpers.dumper_root import Dumper
 from linkml_runtime.utils.yamlutils import YAMLRoot
 from pydantic import BaseModel
+from zarr.storage import LocalStore
 
 
 def _iterate_element(
