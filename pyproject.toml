@@ -25,6 +25,16 @@ dev = [
     "pytest",
     "tox",
 ]
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-autodoc-typehints",
+    "sphinx-click",
+    "myst-parser"
+]
+jupyter = [
+    "jupyter"
+]
 
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning"]
