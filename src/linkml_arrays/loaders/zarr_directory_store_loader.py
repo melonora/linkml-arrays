@@ -19,7 +19,6 @@ def _iterate_element(
     """
     ret_dict = dict()
     for k, v in group.attrs.items():
-        print(k)
         ret_dict[k] = v
 
     for k, v in group.members():
