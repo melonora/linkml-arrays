@@ -73,7 +73,7 @@ def _iterate_element(
             ret_dict[k] = {
                 "source": [
                     {
-                        "file": f"./{output_file_path}",
+                        "file": f"./{output_file_path.as_posix()}",
                         "format": format,
                     }
                 ]
