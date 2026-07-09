@@ -20,7 +20,7 @@ and labeled dimensions which correspond to the concept of `coordinates` in `xarr
 # Quick reference for common commands
 
 ```bash
-poetry run gen-pydantic tests/input/temperature_schema.yaml > tests/array_classes_lol.py
+uv run gen-pydantic tests/input/temperature_schema.yaml > tests/array_classes_lol.py
 ```
 
 # Acknowledgements
