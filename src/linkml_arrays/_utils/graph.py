@@ -15,12 +15,9 @@ from pydantic import BaseModel
 @dataclass(slots=True)
 class GraphEdge:
     """Relationship between 2 nodes in linkml labeled array object"""
-
     parent: int
     child: int
-
     slot_name: str
-
     multivalued: bool = False
     inlined: bool = False
 
@@ -228,7 +225,7 @@ class ObjectGraph:
 
         yield from visit(self.root)
 
-class YAMLGraphSerializer:
+class YAMLGraphArraySerializer:
     def __init__(
         self,
         graph: ObjectGraph,
@@ -394,3 +391,37 @@ class ZarrGraphSerializer:
                 continue
             else:
                 group.attrs[slot_name] = value
+
+class YamlGraphSerializer:
+    def __init__(
+        self,
+        graph: ObjectGraph,
+        schemaview: SchemaView,
+    ):
+        self.graph = graph
+        self.schemaview = schemaview
+        self.serialized: dict[int, dict] = {}
+
+    def serialize(self) -> dict:
+        for node in self.graph.dependency_order():
+            self.serialized[node.key] = self.serialize_node(node)
+
+        return self.serialized[self.graph.root]
+
+    def serialize_node(self, node: GraphNode) -> dict:
+        result = {}
+
+        for slot_name, value in vars(node.obj).items():
+            slot = self.schemaview.induced_slot(
+                slot_name,
+                node.class_name,
+            )
+
+            if slot.array:
+                result[slot_name] = value
+            elif isinstance(value, BaseModel):
+                result[slot_name] = self.serialized[id(value)]
+            else:
+                result[slot_name] = value
+
+        return result

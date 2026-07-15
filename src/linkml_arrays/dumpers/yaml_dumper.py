@@ -8,6 +8,8 @@ from linkml_runtime.dumpers.dumper_root import Dumper
 from linkml_runtime.utils.yamlutils import YAMLRoot
 from pydantic import BaseModel
 
+from linkml_arrays._utils.graph import ObjectGraph, YamlGraphSerializer
+
 
 def _iterate_element(
     element: Union[YAMLRoot, BaseModel], schemaview: SchemaView, parent_identifier=None
@@ -54,6 +56,14 @@ class YamlDumper(Dumper):
 
     def dumps(self, element: Union[YAMLRoot, BaseModel], schemaview: SchemaView, **kwargs) -> str:
         """Return element formatted as a YAML string."""
-        input = _iterate_element(element, schemaview)
+        graph = ObjectGraph.from_root(
+            element,
+            schemaview,
+        )
 
-        return yaml.dump(input)
+        serializer = YamlGraphSerializer(
+            graph,
+            schemaview,
+        )
+
+        return yaml.dump(serializer.serialize())
