@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from graphlib import TopologicalSorter
 
+import h5py
 from linkml_runtime import SchemaView
 from pydantic import BaseModel
 
@@ -193,7 +194,7 @@ class ObjectGraph:
                 parent.outgoing.append(edge)
                 child.incoming.append(edge)
 
-    def sorter(self):
+    def dependency_order(self) -> Iterator[GraphNode]:
         ts = TopologicalSorter()
 
         for node in self.nodes.values():
@@ -202,7 +203,28 @@ class ObjectGraph:
                 *(edge.child for edge in node.outgoing),
             )
 
-        return ts
+        for key in ts.static_order():
+            yield self.nodes[key]
+
+    def hierarchy_order(self) -> Iterator[GraphNode]:
+        if self.root is None:
+            return
+
+        visited: set[int] = set()
+
+        def visit(key: int):
+            if key in visited:
+                return
+
+            visited.add(key)
+
+            node = self.nodes[key]
+            yield node
+
+            for edge in node.outgoing:
+                yield from visit(edge.child)
+
+        yield from visit(self.root)
 
 class YAMLGraphSerializer:
     def __init__(
@@ -240,9 +262,8 @@ class YAMLGraphSerializer:
         )
 
     def serialize(self):
-        for key in self.graph.sorter().static_order():
-            node = self.graph[key]
-            self.serialized[key] = self.serialize_node(node)
+        for node in self.graph.dependency_order():
+            self.serialized[node.key] = self.serialize_node(node)
 
         return self.serialized[self.graph.root]
 
@@ -279,3 +300,49 @@ class YAMLGraphSerializer:
                 result[slot_name] = value
 
         return result
+
+
+class Hdf5GraphSerializer:
+    def __init__(
+        self,
+        graph: ObjectGraph,
+        schemaview: SchemaView,
+        h5file: h5py.File,
+    ):
+        self.graph = graph
+        self.schemaview = schemaview
+        self.h5file = h5file
+
+        self.groups: dict[int, h5py.Group] = {}
+
+    def serialize(self):
+        root = self.graph[self.graph.root]
+        self.groups[root.key] = self.h5file
+
+        for node in self.graph.hierarchy_order():
+            self.serialize_node(node)
+
+    def serialize_node(self, node: GraphNode):
+        if node.key not in self.groups:
+            edge = node.incoming[0]
+            parent_group = self.groups[edge.parent]
+            group = parent_group.create_group(edge.slot_name)
+            self.groups[node.key] = group
+
+        group = self.groups[node.key]
+
+        for slot_name, value in vars(node.obj).items():
+            slot = self.schemaview.induced_slot(
+                slot_name,
+                node.class_name,
+            )
+
+            if slot.array:
+                group.create_dataset(
+                    slot.name,
+                    data=value,
+                )
+            elif isinstance(value, BaseModel):
+                pass
+            else:
+                group.attrs[slot_name] = value
