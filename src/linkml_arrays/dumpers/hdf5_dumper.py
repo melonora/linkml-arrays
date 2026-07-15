@@ -9,31 +9,7 @@ from linkml_runtime.dumpers.dumper_root import Dumper
 from linkml_runtime.utils.yamlutils import YAMLRoot
 from pydantic import BaseModel
 
-
-def _iterate_element(
-    element: Union[YAMLRoot, BaseModel], schemaview: SchemaView, group: h5py.Group = None
-):
-    """Recursively iterate through the elements of a LinkML model and save them.
-
-    Write Pydantic BaseModel objects as groups, slots with the "array" element
-    as datasets, and other slots as attributes.
-    """
-    # get the type of the element
-    element_type = type(element).__name__
-
-    for k, v in vars(element).items():
-        found_slot = schemaview.induced_slot(k, element_type)
-        if found_slot.array:
-            # save the numpy array to an hdf5 dataset
-            group.create_dataset(found_slot.name, data=v)
-        else:
-            if isinstance(v, BaseModel):
-                # create a subgroup and recurse
-                subgroup = group.create_group(k)
-                _iterate_element(v, schemaview, subgroup)
-            else:
-                # create an attribute on the group
-                group.attrs[k] = v
+from linkml_arrays._utils.graph import ObjectGraph, Hdf5GraphSerializer
 
 
 class Hdf5Dumper(Dumper):
@@ -48,5 +24,12 @@ class Hdf5Dumper(Dumper):
         **kwargs,
     ):
         """Dump the element to an HDF5 file."""
+        graph = ObjectGraph.from_root(element, schemaview)
+
         with h5py.File(output_file_path, "w") as f:
-            _iterate_element(element, schemaview, f)
+            serializer = Hdf5GraphSerializer(
+                graph=graph,
+                schemaview=schemaview,
+                h5file=f,
+            )
+            serializer.serialize()
