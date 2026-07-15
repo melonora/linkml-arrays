@@ -7,6 +7,8 @@ from typing import Any
 from graphlib import TopologicalSorter
 
 import h5py
+import numpy as np
+import zarr
 from linkml_runtime import SchemaView
 from pydantic import BaseModel
 
@@ -344,5 +346,51 @@ class Hdf5GraphSerializer:
                 )
             elif isinstance(value, BaseModel):
                 pass
+            else:
+                group.attrs[slot_name] = value
+
+class ZarrGraphSerializer:
+    def __init__(
+        self,
+        graph: ObjectGraph,
+        schemaview: SchemaView,
+        root: zarr.Group,
+    ):
+        self.graph = graph
+        self.schemaview = schemaview
+        self.root = root
+
+        self.groups: dict[int, zarr.Group] = {}
+
+    def serialize(self):
+        root_node = self.graph[self.graph.root]
+        self.groups[root_node.key] = self.root
+
+        for node in self.graph.hierarchy_order():
+            self.serialize_node(node)
+
+    def serialize_node(self, node: GraphNode):
+        if node.key not in self.groups:
+            edge = node.incoming[0]
+            parent_group = self.groups[edge.parent]
+
+            group = parent_group.create_group(edge.slot_name)
+            self.groups[node.key] = group
+
+        group = self.groups[node.key]
+
+        for slot_name, value in vars(node.obj).items():
+            slot = self.schemaview.induced_slot(
+                slot_name,
+                node.class_name,
+            )
+
+            if slot.array:
+                group.create_array(
+                    slot.name,
+                    data=np.asarray(value),
+                )
+            elif isinstance(value, BaseModel):
+                continue
             else:
                 group.attrs[slot_name] = value
