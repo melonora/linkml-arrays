@@ -7,6 +7,7 @@ from typing import Any
 from graphlib import TopologicalSorter
 
 import h5py
+import zarr
 from linkml_runtime import SchemaView
 from pydantic import BaseModel
 from itertools import count
@@ -96,6 +97,27 @@ class ObjectGraph:
 
         return graph
 
+    @classmethod
+    def from_zarr(
+            cls,
+            source: str | Path,
+            schemaview: SchemaView,
+            root_class: str,
+    ) -> "ObjectGraph":
+        graph = cls()
+
+        z = zarr.open(source, mode="r")
+        schema_class = schemaview.get_class(root_class)
+
+        root = graph._discover_zarr_group(
+            group=z,
+            class_definition=schema_class,
+            schemaview=schemaview,
+        )
+        graph.root = root.key
+
+        return graph
+
     def __contains__(self, obj: BaseModel | int) -> bool:
         if isinstance(obj, int):
             return obj in self.nodes
@@ -113,6 +135,52 @@ class ObjectGraph:
 
     def by_identifier(self, identifier: str) -> GraphNode:
         return self.nodes[self._identifier_index[identifier]]
+
+    def _discover_zarr_group(
+            self,
+            group: zarr.Group,
+            class_definition,
+            schemaview: SchemaView,
+    ) -> GraphNode:
+        node = GraphNode(
+            class_name=class_definition.name,
+        )
+
+        for name, value in group.attrs.items():
+            node.values[name] = value
+
+        self.nodes[node.key] = node
+
+        for name, value in group.members():
+            slot = schemaview.induced_slot(
+                name,
+                class_definition.name,
+            )
+
+            if slot.array:
+                node.values[name] = value[()]
+                continue
+
+            child_class = schemaview.get_class(slot.range)
+
+            child = self._discover_zarr_group(
+                group=value,
+                class_definition=child_class,
+                schemaview=schemaview,
+            )
+
+            edge = GraphEdge(
+                parent=node.key,
+                child=child.key,
+                slot_name=slot.name,
+                multivalued=bool(slot.multivalued),
+                inlined=bool(slot.inlined),
+            )
+
+            node.outgoing.append(edge)
+            child.incoming.append(edge)
+
+        return node
 
     def _discover_hdf5_group(
             self,
