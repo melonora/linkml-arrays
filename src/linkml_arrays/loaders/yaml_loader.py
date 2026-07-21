@@ -9,6 +9,9 @@ from linkml_runtime.loaders.loader_root import Loader
 from linkml_runtime.utils.yamlutils import YAMLRoot
 from pydantic import BaseModel
 
+from linkml_arrays.graph_utils.deserializers import GraphDeserializer
+from linkml_arrays.graph_utils.graph import ObjectGraph
+
 
 def _iterate_element(
     input_dict: dict, element_type: ClassDefinition, schemaview: SchemaView
@@ -42,13 +45,21 @@ class YamlLoader(Loader):
         source: str,
         target_class: Type[Union[YAMLRoot, BaseModel]],
         schemaview: SchemaView,
+        resolve_arrays: bool = False,
         **kwargs,
     ):
         """Create an instance of the target class from a YAML file."""
-        input_dict = yaml.safe_load(source)
+        graph = ObjectGraph.from_yaml(
+            source,
+            schemaview,
+            target_class.__name__,
+            resolve_arrays=resolve_arrays,
+        )
 
-        element_type = schemaview.get_class(target_class.__name__)
-        element = _iterate_element(input_dict, element_type, schemaview)
-        obj = target_class(**element)
+        deserializer = GraphDeserializer.from_target_class(
+            graph,
+            schemaview,
+            target_class,
+        )
 
-        return obj
+        return deserializer.deserialize(target_class)

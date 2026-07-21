@@ -7,6 +7,8 @@ from typing import Any
 from graphlib import TopologicalSorter
 
 import h5py
+import numpy as np
+import yaml
 import zarr
 from linkml_runtime import SchemaView
 from pydantic import BaseModel
@@ -114,6 +116,40 @@ class ObjectGraph:
             class_definition=schema_class,
             schemaview=schemaview,
         )
+        graph.root = root.key
+
+        return graph
+
+    @classmethod
+    def from_yaml(
+            cls,
+            source: str | Path,
+            schemaview: SchemaView,
+            root_class: str,
+            resolve_arrays=False
+    ) -> "ObjectGraph":
+        """Construct an ObjectGraph from a YAML document."""
+
+        graph = cls()
+
+        if isinstance(source, (str, Path)) and Path(source).exists():
+            with open(source) as f:
+                data = yaml.safe_load(f)
+            base_path = Path(source).parent
+        else:
+            data = yaml.safe_load(source)
+            base_path = Path(".")
+
+        schema_class = schemaview.get_class(root_class)
+
+        root = graph._discover_yaml_dict(
+            input_dict=data,
+            class_definition=schema_class,
+            schemaview=schemaview,
+            base_path=base_path,
+            resolve_arrays=resolve_arrays,
+        )
+
         graph.root = root.key
 
         return graph
@@ -226,6 +262,101 @@ class ObjectGraph:
             node.outgoing.append(edge)
             child.incoming.append(edge)
 
+        return node
+
+    def _discover_yaml_dict(
+            self,
+            input_dict: dict,
+            class_definition,
+            schemaview: SchemaView,
+            base_path: Path,
+            resolve_arrays: bool,
+    ) -> GraphNode:
+        """Recursively discover a YAML object hierarchy."""
+
+        node = GraphNode(
+            class_name=class_definition.name,
+        )
+
+        self.nodes[node.key] = node
+
+        for name, value in input_dict.items():
+
+            slot = schemaview.induced_slot(
+                name,
+                class_definition.name,
+            )
+
+            if slot.array:
+                if not resolve_arrays:
+                    node.values[name] = value
+                    continue
+
+                sources = value.get("source")
+                if sources is None:
+                    raise ValueError(f"Array slot '{name}' has no source.")
+
+                if len(sources) != 1:
+                    raise NotImplementedError(
+                        "Multiple array sources are not yet supported."
+                    )
+
+                source = sources[0]
+                fmt = source.get("format")
+                file = source.get("file")
+
+                if fmt is None:
+                    raise ValueError(
+                        f"Array slot '{name}' has no format."
+                    )
+
+                if file is None:
+                    raise ValueError(
+                        f"Array slot '{name}' has no file."
+                    )
+
+                file = base_path / file
+
+                if fmt == "numpy":
+                    node.values[name] = np.load(file)
+                elif fmt == "hdf5":
+                    with h5py.File(file, "r") as f:
+                        node.values[name] = f["data"][()]
+                elif fmt == "zarr":
+                    z = zarr.open(file, mode="r")
+                    node.values[name] = z["data"][()]
+                else:
+                    raise ValueError(
+                        f"Unsupported array format '{fmt}'."
+                    )
+                continue
+
+            if isinstance(value, dict):
+                child_class = schemaview.get_class(
+                    slot.range,
+                )
+
+                child = self._discover_yaml_dict(
+                    input_dict=value,
+                    class_definition=child_class,
+                    schemaview=schemaview,
+                    base_path=base_path,
+                    resolve_arrays=resolve_arrays,
+                )
+
+                edge = GraphEdge(
+                    parent=node.key,
+                    child=child.key,
+                    slot_name=slot.name,
+                    multivalued=bool(slot.multivalued),
+                    inlined=bool(slot.inlined),
+                )
+
+                node.outgoing.append(edge)
+                child.incoming.append(edge)
+                continue
+
+            node.values[name] = value
         return node
 
     def _discover(
