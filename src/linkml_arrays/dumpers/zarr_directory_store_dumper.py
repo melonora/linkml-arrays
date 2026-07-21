@@ -10,7 +10,8 @@ from linkml_runtime.utils.yamlutils import YAMLRoot
 from pydantic import BaseModel
 from zarr.storage import LocalStore
 
-from linkml_arrays._utils.graph import ObjectGraph, ZarrGraphSerializer
+from linkml_arrays.graph_utils.graph import ObjectGraph
+from linkml_arrays.graph_utils.serializers import ZarrGraphSerializer
 
 class ZarrDirectoryStoreDumper(Dumper):
     """Dumper class for LinkML models to Zarr directory stores."""

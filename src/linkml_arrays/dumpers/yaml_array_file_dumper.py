@@ -11,7 +11,8 @@ from linkml_runtime.dumpers.dumper_root import Dumper
 from linkml_runtime.utils.yamlutils import YAMLRoot
 from pydantic import BaseModel
 
-from linkml_arrays._utils.graph import ObjectGraph, YAMLGraphArraySerializer
+from linkml_arrays.graph_utils.graph import ObjectGraph
+from linkml_arrays.graph_utils.serializers import YAMLGraphArraySerializer
 
 
 class YamlArrayFileDumper(Dumper, metaclass=ABCMeta):

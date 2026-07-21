@@ -9,7 +9,8 @@ from linkml_runtime.dumpers.dumper_root import Dumper
 from linkml_runtime.utils.yamlutils import YAMLRoot
 from pydantic import BaseModel
 
-from linkml_arrays._utils.graph import ObjectGraph, Hdf5GraphSerializer
+from linkml_arrays.graph_utils.graph import ObjectGraph
+from linkml_arrays.graph_utils.serializers import Hdf5GraphSerializer
 
 
 class Hdf5Dumper(Dumper):
