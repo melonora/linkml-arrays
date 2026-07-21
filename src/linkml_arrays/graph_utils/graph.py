@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from graphlib import TopologicalSorter
+from uuid import UUID, uuid4
 
 import h5py
 import numpy as np
@@ -12,15 +13,12 @@ import yaml
 import zarr
 from linkml_runtime import SchemaView
 from pydantic import BaseModel
-from itertools import count
-
-_node_counter = count()
 
 @dataclass(slots=True)
 class GraphEdge:
     """Relationship between 2 nodes in linkml labeled array object"""
-    parent: int
-    child: int
+    parent: UUID
+    child: UUID
     slot_name: str
     multivalued: bool = False
     inlined: bool = False
@@ -41,7 +39,7 @@ class GraphNode:
     values: dict[str, Any] = field(default_factory=dict)
     incoming: list[GraphEdge] = field(default_factory=list)
     outgoing: list[GraphEdge] = field(default_factory=list)
-    key: int = field(default_factory=lambda: next(_node_counter), init=False)
+    key: int = field(default_factory=uuid4, init=False)
 
     @property
     def parents(self) -> list[int]:
@@ -60,10 +58,10 @@ class GraphNode:
 
 class ObjectGraph:
     def __init__(self):
-        self.nodes: dict[int, GraphNode] = {}
+        self.nodes: dict[UUID, GraphNode] = {}
         self.root: int | None = None
-        self._identifier_index: dict[str, int] = {}
-        self._object_index: dict[int, int] = {}
+        self._identifier_index: dict[str, UUID] = {}
+        self._object_index: dict[int, UUID] = {}
 
     @classmethod
     def from_root(
@@ -161,10 +159,7 @@ class ObjectGraph:
         return id(obj) in self._object_index
 
     def __getitem__(self, obj: BaseModel | int):
-        if isinstance(obj, int):
-            return self.nodes[obj]
-
-        return self.nodes[self._object_index[id(obj)]]
+        return self.nodes[obj]
 
     def __iter__(self) -> Iterator[GraphNode]:
         return iter(self.nodes.values())
