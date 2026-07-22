@@ -12,6 +12,7 @@ import numpy as np
 import yaml
 import zarr
 from linkml_runtime import SchemaView
+from linkml_runtime.linkml_model import ClassDefinition
 from pydantic import BaseModel
 
 @dataclass(slots=True)
@@ -39,14 +40,14 @@ class GraphNode:
     values: dict[str, Any] = field(default_factory=dict)
     incoming: list[GraphEdge] = field(default_factory=list)
     outgoing: list[GraphEdge] = field(default_factory=list)
-    key: int = field(default_factory=uuid4, init=False)
+    key: UUID = field(default_factory=uuid4, init=False)
 
     @property
-    def parents(self) -> list[int]:
+    def parents(self) -> list[UUID]:
         return [e.parent for e in self.incoming]
 
     @property
-    def children(self) -> list[int]:
+    def children(self) -> list[UUID]:
         return [e.child for e in self.outgoing]
 
     def __repr__(self):
@@ -59,7 +60,7 @@ class GraphNode:
 class ObjectGraph:
     def __init__(self):
         self.nodes: dict[UUID, GraphNode] = {}
-        self.root: int | None = None
+        self.root: UUID | None = None
         self._identifier_index: dict[str, UUID] = {}
         self._object_index: dict[int, UUID] = {}
 
@@ -88,6 +89,9 @@ class ObjectGraph:
         with h5py.File(source, "r") as f:
             schema_class = schemaview.get_class(root_class)
 
+            if not schema_class:
+                raise ValueError(f"Root class {root_class} not found in schema.")
+
             root = graph._discover_hdf5_group(
                 group=f,
                 class_definition=schema_class,
@@ -108,6 +112,12 @@ class ObjectGraph:
 
         z = zarr.open(source, mode="r")
         schema_class = schemaview.get_class(root_class)
+
+        if not schema_class:
+            raise ValueError(f"Root class {root_class} not found in schema.")
+
+        if not isinstance(z, zarr.Group):
+            raise ValueError(f"Source should be a zarr group, but got type {type(z)}")
 
         root = graph._discover_zarr_group(
             group=z,
@@ -130,15 +140,21 @@ class ObjectGraph:
 
         graph = cls()
 
-        if isinstance(source, (str, Path)) and Path(source).exists():
-            with open(source) as f:
-                data = yaml.safe_load(f)
-            base_path = Path(source).parent
+        if isinstance(source, (str, Path)):
+            if Path(source).exists():
+                with open(source) as f:
+                    data = yaml.safe_load(f)
+                base_path = Path(source).parent
+            else:
+                data = yaml.safe_load(str(source))
+                base_path = Path(".")
         else:
-            data = yaml.safe_load(source)
-            base_path = Path(".")
+            raise ValueError(f"Source should be of type Path or str, got {type(source)}")
 
         schema_class = schemaview.get_class(root_class)
+
+        if not schema_class:
+            raise ValueError(f"Root class {root_class} not found in schema.")
 
         root = graph._discover_yaml_dict(
             input_dict=data,
@@ -152,13 +168,13 @@ class ObjectGraph:
 
         return graph
 
-    def __contains__(self, obj: BaseModel | int) -> bool:
-        if isinstance(obj, int):
+    def __contains__(self, obj: BaseModel | UUID) -> bool:
+        if isinstance(obj, UUID):
             return obj in self.nodes
 
         return id(obj) in self._object_index
 
-    def __getitem__(self, obj: BaseModel | int):
+    def __getitem__(self, obj: BaseModel | UUID):
         if isinstance(obj, UUID):
             return self.nodes[obj]
 
@@ -196,6 +212,12 @@ class ObjectGraph:
                 continue
 
             child_class = schemaview.get_class(slot.range)
+            if not isinstance(value, zarr.Group):
+                raise ValueError(f"The value of {name} in group.members is expected to be a zarr Group, "
+                                 f"got {type(value)}")
+
+            if not child_class:
+                raise ValueError(f"Root class {child_class} not found in schema.")
 
             child = self._discover_zarr_group(
                 group=value,
@@ -219,7 +241,7 @@ class ObjectGraph:
     def _discover_hdf5_group(
             self,
             group: h5py.Group,
-            class_definition,
+            class_definition: ClassDefinition,
             schemaview: SchemaView,
     ) -> GraphNode:
         node = GraphNode(
@@ -243,6 +265,9 @@ class ObjectGraph:
 
             child_class = schemaview.get_class(slot.range)
 
+            if not child_class:
+                raise ValueError(f"Root class {child_class} not found in schema.")
+
             child = self._discover_hdf5_group(
                 group=value,
                 class_definition=child_class,
@@ -265,7 +290,7 @@ class ObjectGraph:
     def _discover_yaml_dict(
             self,
             input_dict: dict,
-            class_definition,
+            class_definition: ClassDefinition,
             schemaview: SchemaView,
             base_path: Path,
             resolve_arrays: bool,
@@ -333,6 +358,9 @@ class ObjectGraph:
                 child_class = schemaview.get_class(
                     slot.range,
                 )
+
+                if not child_class:
+                    raise ValueError(f"Root class {child_class} not found in schema.")
 
                 child = self._discover_yaml_dict(
                     input_dict=value,
@@ -474,9 +502,9 @@ class ObjectGraph:
         if self.root is None:
             return
 
-        visited: set[int] = set()
+        visited: set[UUID] = set()
 
-        def visit(key: int):
+        def visit(key: UUID):
             if key in visited:
                 return
 
