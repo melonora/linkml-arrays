@@ -61,7 +61,9 @@ def test_yaml_loader():
     """Test YamlLoader loading pydantic classes from YAML arrays."""
     data_yaml = hbread("container_yaml.yaml", base_path=str(Path(__file__) / "../../input"))
     schemaview = SchemaView(Path(__file__) / "../../input/temperature_schema.yaml")
-    container = YamlLoader().loads(data_yaml, target_class=Container, schemaview=schemaview, resolve_arrays=False)
+    container = YamlLoader().loads(
+        data_yaml, target_class=Container, schemaview=schemaview, resolve_arrays=False
+    )
     _check_container(container)
 
 

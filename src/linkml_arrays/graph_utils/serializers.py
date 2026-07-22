@@ -1,5 +1,5 @@
-from pathlib import Path
 from collections.abc import Callable
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -36,14 +36,9 @@ class YAMLGraphArraySerializer:
             parent = self.graph[edge.parent]
 
             if parent.identifier is not None:
-                return (
-                        self.output_dir
-                        / f"{parent.identifier}.{edge.slot_name}.{slot.name}"
-                )
+                return self.output_dir / f"{parent.identifier}.{edge.slot_name}.{slot.name}"
 
-        raise ValueError(
-            f"Cannot determine filename for {node.class_name}"
-        )
+        raise ValueError(f"Cannot determine filename for {node.class_name}")
 
     def serialize(self):
         for node in self.graph.dependency_order():
@@ -72,10 +67,12 @@ class YAMLGraphArraySerializer:
                 )
 
                 result[slot_name] = {
-                    "source": [{
-                        "file": f"./{output.as_posix()}",
-                        "format": self.array_format,
-                    }]
+                    "source": [
+                        {
+                            "file": f"./{output.as_posix()}",
+                            "format": self.array_format,
+                        }
+                    ]
                 }
 
             elif isinstance(value, BaseModel):
@@ -84,6 +81,7 @@ class YAMLGraphArraySerializer:
                 result[slot_name] = value
 
         return result
+
 
 class Hdf5GraphSerializer:
     def __init__(
@@ -130,6 +128,7 @@ class Hdf5GraphSerializer:
             else:
                 group.attrs[slot_name] = value
 
+
 class ZarrGraphSerializer:
     def __init__(
         self,
@@ -175,6 +174,7 @@ class ZarrGraphSerializer:
                 continue
             else:
                 group.attrs[slot_name] = value
+
 
 class YamlGraphSerializer:
     def __init__(

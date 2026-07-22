@@ -13,6 +13,7 @@ from zarr.storage import LocalStore
 from linkml_arrays.graph_utils.graph import ObjectGraph
 from linkml_arrays.graph_utils.serializers import ZarrGraphSerializer
 
+
 class ZarrDirectoryStoreDumper(Dumper):
     """Dumper class for LinkML models to Zarr directory stores."""
 

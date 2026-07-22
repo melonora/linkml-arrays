@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from graphlib import TopologicalSorter
 from pathlib import Path
 from typing import Any
-from graphlib import TopologicalSorter
 from uuid import UUID, uuid4
 
 import h5py
@@ -14,6 +14,7 @@ import zarr
 from linkml_runtime import SchemaView
 from linkml_runtime.linkml_model import ClassDefinition
 from pydantic import BaseModel
+
 
 @dataclass(slots=True)
 class GraphEdge:
@@ -38,6 +39,7 @@ class GraphEdge:
         Whether the attribute is serialized inline according to the
         LinkML schema.
     """
+
     parent: UUID
     child: UUID
     slot_name: str
@@ -45,10 +47,7 @@ class GraphEdge:
     inlined: bool = False
 
     def __repr__(self) -> str:
-        return (
-            f"{self.parent} --{self.slot_name}--> "
-            f"{self.child}"
-        )
+        return f"{self.parent} --{self.slot_name}--> " f"{self.child}"
 
 
 @dataclass(slots=True)
@@ -82,6 +81,7 @@ class GraphNode:
         Graph edges corresponding to object-valued attributes originating
         from this node.
     """
+
     class_name: str
     obj: BaseModel | None = None
     identifier: str | None = None
@@ -101,11 +101,8 @@ class GraphNode:
         return [e.child for e in self.outgoing]
 
     def __repr__(self):
-        return (
-            f"GraphNode("
-            f"{self.class_name}, "
-            f"id={self.identifier!r})"
-        )
+        return f"GraphNode(" f"{self.class_name}, " f"id={self.identifier!r})"
+
 
 class ObjectGraph:
     """Graph representation of a LinkML labeled array model.
@@ -133,6 +130,7 @@ class ObjectGraph:
         Mapping from LinkML identifier values to node keys for efficient
         lookup of referenced objects.
     """
+
     def __init__(self):
         self.nodes: dict[UUID, GraphNode] = {}
         self.root: UUID | None = None
@@ -177,10 +175,10 @@ class ObjectGraph:
 
     @classmethod
     def from_hdf5(
-            cls,
-            source: str | Path,
-            schemaview: SchemaView,
-            root_class: str,
+        cls,
+        source: str | Path,
+        schemaview: SchemaView,
+        root_class: str,
     ) -> "ObjectGraph":
         graph = cls()
 
@@ -201,10 +199,10 @@ class ObjectGraph:
 
     @classmethod
     def from_zarr(
-            cls,
-            source: str | Path,
-            schemaview: SchemaView,
-            root_class: str,
+        cls,
+        source: str | Path,
+        schemaview: SchemaView,
+        root_class: str,
     ) -> "ObjectGraph":
         """Construct an ObjectGraph from a Zarr representation of a LinkML model.
 
@@ -240,7 +238,6 @@ class ObjectGraph:
         ValueError
             If ``root_class`` is not defined in the schema or if ``source``
             does not contain a Zarr group.
-
         """
         graph = cls()
 
@@ -264,11 +261,7 @@ class ObjectGraph:
 
     @classmethod
     def from_yaml(
-            cls,
-            source: str | Path,
-            schemaview: SchemaView,
-            root_class: str,
-            resolve_arrays=False
+        cls, source: str | Path, schemaview: SchemaView, root_class: str, resolve_arrays=False
     ) -> "ObjectGraph":
         """Construct an ObjectGraph from a YAML representation of a LinkML model.
 
@@ -357,41 +350,41 @@ class ObjectGraph:
         return self.nodes[self._identifier_index[identifier]]
 
     def _discover_zarr_group(
-            self,
-            group: zarr.Group,
-            class_definition,
-            schemaview: SchemaView,
+        self,
+        group: zarr.Group,
+        class_definition,
+        schemaview: SchemaView,
     ) -> GraphNode:
-        """ Recursively construct graph nodes from a Zarr group hierarchy.
+        """Recursively construct graph nodes from a Zarr group hierarchy.
 
-            Traverses a Zarr group representing a LinkML object and constructs
-            the corresponding graph node. Group attributes are stored as scalar
-            attributes of the node, Zarr arrays become array-valued attributes,
-            and nested groups are recursively converted into child nodes
-            connected by graph edges representing object-valued LinkML
-            attributes.
+        Traverses a Zarr group representing a LinkML object and constructs
+        the corresponding graph node. Group attributes are stored as scalar
+        attributes of the node, Zarr arrays become array-valued attributes,
+        and nested groups are recursively converted into child nodes
+        connected by graph edges representing object-valued LinkML
+        attributes.
 
-            Parameters
-            ----------
-            group
-                Zarr group corresponding to a LinkML class instance.
-            class_definition
-                LinkML class definition describing the structure of the current
-                group.
-            schemaview
-                SchemaView describing the LinkML schema.
+        Parameters
+        ----------
+        group
+            Zarr group corresponding to a LinkML class instance.
+        class_definition
+            LinkML class definition describing the structure of the current
+            group.
+        schemaview
+            SchemaView describing the LinkML schema.
 
-            Returns
-            -------
-            GraphNode
-                Graph node corresponding to the supplied Zarr group.
+        Returns
+        -------
+        GraphNode
+            Graph node corresponding to the supplied Zarr group.
 
-            Raises
-            ------
-            ValueError
-                If a nested object is not stored as a Zarr group or if the range
-                of an object-valued attribute cannot be resolved to a LinkML
-                class.
+        Raises
+        ------
+        ValueError
+            If a nested object is not stored as a Zarr group or if the range
+            of an object-valued attribute cannot be resolved to a LinkML
+            class.
         """
         node = GraphNode(
             class_name=class_definition.name,
@@ -414,8 +407,10 @@ class ObjectGraph:
 
             child_class = schemaview.get_class(slot.range)
             if not isinstance(value, zarr.Group):
-                raise ValueError(f"The value of {name} in group.members is expected to be a zarr Group, "
-                                 f"got {type(value)}")
+                raise ValueError(
+                    f"The value of {name} in group.members is expected to "
+                    f"be a zarr Group, got {type(value)}."
+                )
 
             if not child_class:
                 raise ValueError(f"Root class {child_class} not found in schema.")
@@ -440,39 +435,39 @@ class ObjectGraph:
         return node
 
     def _discover_hdf5_group(
-            self,
-            group: h5py.Group,
-            class_definition: ClassDefinition,
-            schemaview: SchemaView,
+        self,
+        group: h5py.Group,
+        class_definition: ClassDefinition,
+        schemaview: SchemaView,
     ) -> GraphNode:
         """Recursively construct graph nodes from an HDF5 group hierarchy.
 
-            Traverses an HDF5 group representing a LinkML object and constructs
-            the corresponding graph node. Group attributes are stored as scalar
-            attributes of the node, datasets become array-valued attributes, and
-            nested groups are recursively converted into child nodes connected
-            by graph edges representing object-valued LinkML attributes.
+        Traverses an HDF5 group representing a LinkML object and constructs
+        the corresponding graph node. Group attributes are stored as scalar
+        attributes of the node, datasets become array-valued attributes, and
+        nested groups are recursively converted into child nodes connected
+        by graph edges representing object-valued LinkML attributes.
 
-            Parameters
-            ----------
-            group
-                HDF5 group corresponding to a LinkML class instance.
-            class_definition
-                LinkML class definition describing the structure of the current
-                group.
-            schemaview
-                SchemaView describing the LinkML schema.
+        Parameters
+        ----------
+        group
+            HDF5 group corresponding to a LinkML class instance.
+        class_definition
+            LinkML class definition describing the structure of the current
+            group.
+        schemaview
+            SchemaView describing the LinkML schema.
 
-            Returns
-            -------
-            GraphNode
-                Graph node corresponding to the supplied HDF5 group.
+        Returns
+        -------
+        GraphNode
+            Graph node corresponding to the supplied HDF5 group.
 
-            Raises
-            ------
-            ValueError
-                If the range of an object-valued attribute cannot be resolved to
-                a LinkML class.
+        Raises
+        ------
+        ValueError
+            If the range of an object-valued attribute cannot be resolved to
+            a LinkML class.
         """
         node = GraphNode(
             class_name=class_definition.name,
@@ -518,12 +513,12 @@ class ObjectGraph:
         return node
 
     def _discover_yaml_dict(
-            self,
-            input_dict: dict,
-            class_definition: ClassDefinition,
-            schemaview: SchemaView,
-            base_path: Path,
-            resolve_arrays: bool,
+        self,
+        input_dict: dict,
+        class_definition: ClassDefinition,
+        schemaview: SchemaView,
+        base_path: Path,
+        resolve_arrays: bool,
     ) -> GraphNode:
         """Recursively construct graph nodes from a YAML representation.
 
@@ -565,7 +560,7 @@ class ObjectGraph:
         NotImplementedError
             If multiple array sources are specified for a single
             array-valued attribute.
-    """
+        """
         node = GraphNode(
             class_name=class_definition.name,
         )
@@ -589,23 +584,17 @@ class ObjectGraph:
                     raise ValueError(f"Array slot '{name}' has no source.")
 
                 if len(sources) != 1:
-                    raise NotImplementedError(
-                        "Multiple array sources are not yet supported."
-                    )
+                    raise NotImplementedError("Multiple array sources are not yet supported.")
 
                 source = sources[0]
                 fmt = source.get("format")
                 file = source.get("file")
 
                 if fmt is None:
-                    raise ValueError(
-                        f"Array slot '{name}' has no format."
-                    )
+                    raise ValueError(f"Array slot '{name}' has no format.")
 
                 if file is None:
-                    raise ValueError(
-                        f"Array slot '{name}' has no file."
-                    )
+                    raise ValueError(f"Array slot '{name}' has no file.")
 
                 file = base_path / file
 
@@ -618,9 +607,7 @@ class ObjectGraph:
                     z = zarr.open(file, mode="r")
                     node.values[name] = z["data"][()]
                 else:
-                    raise ValueError(
-                        f"Unsupported array format '{fmt}'."
-                    )
+                    raise ValueError(f"Unsupported array format '{fmt}'.")
                 continue
 
             if isinstance(value, dict):
@@ -655,30 +642,30 @@ class ObjectGraph:
         return node
 
     def _discover(
-            self,
-            obj: BaseModel,
-            schemaview: SchemaView,
+        self,
+        obj: BaseModel,
+        schemaview: SchemaView,
     ) -> GraphNode:
         """Recursively construct graph nodes from an instantiated LinkML model.
 
-            Traverses an instantiated LinkML object and constructs the
-            corresponding graph node. Scalar and array-valued attributes remain
-            associated with the node, while object-valued attributes are
-            recursively discovered and represented as graph edges. Previously
-            visited objects are reused to preserve object identity and avoid
-            duplicate nodes.
+        Traverses an instantiated LinkML object and constructs the
+        corresponding graph node. Scalar and array-valued attributes remain
+        associated with the node, while object-valued attributes are
+        recursively discovered and represented as graph edges. Previously
+        visited objects are reused to preserve object identity and avoid
+        duplicate nodes.
 
-            Parameters
-            ----------
-            obj
-                Instantiated LinkML object to add to the graph.
-            schemaview
-                SchemaView describing the LinkML schema.
+        Parameters
+        ----------
+        obj
+            Instantiated LinkML object to add to the graph.
+        schemaview
+            SchemaView describing the LinkML schema.
 
-            Returns
-            -------
-            GraphNode
-                Graph node corresponding to the supplied LinkML object.
+        Returns
+        -------
+        GraphNode
+            Graph node corresponding to the supplied LinkML object.
         """
         obj_id = id(obj)
 
@@ -722,33 +709,33 @@ class ObjectGraph:
         return node
 
     def _discover_value(
-            self,
-            value: Any,
-            parent: GraphNode,
-            slot,
-            schemaview: SchemaView,
+        self,
+        value: Any,
+        parent: GraphNode,
+        slot,
+        schemaview: SchemaView,
     ):
         """Discover object-valued attributes within a LinkML attribute value.
 
-            Traverses the value of a LinkML attribute and adds any referenced
-            LinkML objects to the graph. Object-valued attributes become graph
-            edges connecting the parent node to the referenced child nodes,
-            preserving the multiplicity and inlining semantics defined by the
-            LinkML schema.
+        Traverses the value of a LinkML attribute and adds any referenced
+        LinkML objects to the graph. Object-valued attributes become graph
+        edges connecting the parent node to the referenced child nodes,
+        preserving the multiplicity and inlining semantics defined by the
+        LinkML schema.
 
-            Scalar and array-valued attributes are ignored, as they remain
-            stored directly on their corresponding graph node.
+        Scalar and array-valued attributes are ignored, as they remain
+        stored directly on their corresponding graph node.
 
-            Parameters
-            ----------
-            value
-                Value of the LinkML attribute to inspect.
-            parent
-                Graph node corresponding to the object that owns the attribute.
-            slot
-                LinkML slot definition describing the attribute.
-            schemaview
-                SchemaView describing the LinkML schema.
+        Parameters
+        ----------
+        value
+            Value of the LinkML attribute to inspect.
+        parent
+            Graph node corresponding to the object that owns the attribute.
+        slot
+            LinkML slot definition describing the attribute.
+        schemaview
+            SchemaView describing the LinkML schema.
         """
         if isinstance(value, BaseModel):
             child = self._discover(value, schemaview)
@@ -801,16 +788,16 @@ class ObjectGraph:
     def dependency_order(self) -> Iterator[GraphNode]:
         """Iterate over graph nodes in dependency order.
 
-            Returns graph nodes in a topological order such that every referenced
-            LinkML object is yielded before any object that references it. This
-            ordering is suitable for reconstructing an instantiated LinkML model
-            from an ObjectGraph, ensuring that object-valued attributes can be
-            assigned after their referenced objects have been constructed.
+        Returns graph nodes in a topological order such that every referenced
+        LinkML object is yielded before any object that references it. This
+        ordering is suitable for reconstructing an instantiated LinkML model
+        from an ObjectGraph, ensuring that object-valued attributes can be
+        assigned after their referenced objects have been constructed.
 
-            Yields
-            ------
-            GraphNode
-                Graph nodes in dependency order.
+        Yields
+        ------
+        GraphNode
+            Graph nodes in dependency order.
         """
         ts = TopologicalSorter()
 
@@ -826,20 +813,20 @@ class ObjectGraph:
     def hierarchy_order(self) -> Iterator[GraphNode]:
         """Iterate over graph nodes in hierarchy order.
 
-            Traverses the ObjectGraph starting from the root node using a
-            depth-first traversal, yielding each node exactly once. Shared
-            references are visited only on their first encounter to avoid
-            revisiting the same LinkML object.
+        Traverses the ObjectGraph starting from the root node using a
+        depth-first traversal, yielding each node exactly once. Shared
+        references are visited only on their first encounter to avoid
+        revisiting the same LinkML object.
 
-            This ordering is suitable for serializing the graph to hierarchical
-            storage formats such as YAML, HDF5, and Zarr, where object-valued
-            attributes are represented by nested structures.
+        This ordering is suitable for serializing the graph to hierarchical
+        storage formats such as YAML, HDF5, and Zarr, where object-valued
+        attributes are represented by nested structures.
 
-            Yields
-            ------
-            GraphNode
-                Graph nodes in depth-first hierarchy order beginning at the root
-                node.
+        Yields
+        ------
+        GraphNode
+            Graph nodes in depth-first hierarchy order beginning at the root
+            node.
         """
         if self.root is None:
             return
@@ -849,16 +836,16 @@ class ObjectGraph:
         def visit(key: UUID):
             """Recursively visit nodes in depth-first hierarchy order.
 
-                Parameters
-                ----------
-                key
-                    Key of the graph node to visit.
+            Parameters
+            ----------
+            key
+                Key of the graph node to visit.
 
-                Yields
-                ------
-                GraphNode
-                    The node identified by ``key`` followed by each of its
-                    descendants, skipping nodes that have already been visited.
+            Yields
+            ------
+            GraphNode
+                The node identified by ``key`` followed by each of its
+                descendants, skipping nodes that have already been visited.
             """
             if key in visited:
                 return

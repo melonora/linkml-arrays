@@ -2,7 +2,6 @@
 
 from typing import Type, Union
 
-import yaml
 from linkml_runtime import SchemaView
 from linkml_runtime.linkml_model import ClassDefinition
 from linkml_runtime.loaders.loader_root import Loader

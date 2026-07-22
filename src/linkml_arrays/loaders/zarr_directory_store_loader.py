@@ -2,9 +2,7 @@
 
 from typing import Type, Union
 
-import zarr
 from linkml_runtime import SchemaView
-from linkml_runtime.linkml_model import ClassDefinition
 from linkml_runtime.loaders.loader_root import Loader
 from linkml_runtime.utils.yamlutils import YAMLRoot
 from pydantic import BaseModel

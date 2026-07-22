@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from linkml_arrays.graph_utils.deserializers import GraphDeserializer
 from linkml_arrays.graph_utils.graph import ObjectGraph
 
+
 class Hdf5Loader(Loader):
     """Class for loading a LinkML model from an HDF5 file."""
 
