@@ -1,3 +1,5 @@
+"""Backend independent graph representation of labeled array linkml model."""
+
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -47,6 +49,18 @@ class GraphEdge:
     inlined: bool = False
 
     def __repr__(self) -> str:
+        """Return a concise string representation of the graph edge.
+
+        The returned representation shows the parent node, the LinkML
+        attribute represented by the edge, and the child node in the form::
+
+            <parent> --<slot_name>--> <child>
+
+        Returns
+        -------
+        str
+            Human-readable representation of the graph edge.
+        """
         return f"{self.parent} --{self.slot_name}--> " f"{self.child}"
 
 
@@ -101,6 +115,16 @@ class GraphNode:
         return [e.child for e in self.outgoing]
 
     def __repr__(self):
+        """Return a concise string representation of the graph node.
+
+        The returned representation includes the LinkML class name and, if
+        available, the value of its identifier slot.
+
+        Returns
+        -------
+        str
+            Human-readable representation of the graph node.
+        """
         return f"GraphNode(" f"{self.class_name}, " f"id={self.identifier!r})"
 
 
@@ -132,6 +156,13 @@ class ObjectGraph:
     """
 
     def __init__(self):
+        """Initialize an empty ObjectGraph.
+
+        Creates an empty graph with no nodes or root object. Internal indices
+        for object identity and LinkML identifiers are initialized to support
+        graph construction from instantiated LinkML models and serialized
+        representations.
+        """
         self.nodes: dict[UUID, GraphNode] = {}
         self.root: UUID | None = None
         self._identifier_index: dict[str, UUID] = {}
@@ -180,6 +211,40 @@ class ObjectGraph:
         schemaview: SchemaView,
         root_class: str,
     ) -> "ObjectGraph":
+        """Construct an ObjectGraph from an HDF5 representation of a LinkML model.
+
+        Traverses an HDF5 hierarchy and constructs a graph representation in
+        which each HDF5 group corresponding to a LinkML class instance
+        becomes a graph node. Group attributes are stored as scalar
+        attributes of the node, datasets become array-valued attributes, and
+        nested groups become directed edges representing object-valued
+        LinkML attributes.
+
+        The resulting graph provides a serialization-independent
+        representation of the model that can subsequently be deserialized
+        into instantiated LinkML objects.
+
+        Parameters
+        ----------
+        source
+            Path to the HDF5 file.
+        schemaview
+            SchemaView describing the LinkML schema.
+        root_class
+            Name of the LinkML root class represented by the root HDF5
+            group.
+
+        Returns
+        -------
+        ObjectGraph
+            Graph representation of the LinkML model stored in the HDF5
+            file.
+
+        Raises
+        ------
+        ValueError
+            If ``root_class`` is not defined in the schema.
+        """
         graph = cls()
 
         with h5py.File(source, "r") as f:
@@ -332,21 +397,75 @@ class ObjectGraph:
         return graph
 
     def __contains__(self, obj: BaseModel | UUID) -> bool:
+        """Return whether a node exists in the graph.
+
+        Parameters
+        ----------
+        obj
+            Either the UUID of a graph node or an instantiated LinkML object.
+
+        Returns
+        -------
+        bool
+            ``True`` if the corresponding node exists in the graph,
+            otherwise ``False``.
+        """
         if isinstance(obj, UUID):
             return obj in self.nodes
 
         return id(obj) in self._object_index
 
     def __getitem__(self, obj: BaseModel | UUID):
+        """Return the graph node corresponding to an object or node key.
+
+        Parameters
+        ----------
+        obj
+            Either the UUID of a graph node or an instantiated LinkML object.
+
+        Returns
+        -------
+        GraphNode
+            The corresponding graph node.
+
+        Raises
+        ------
+        KeyError
+            If the requested node does not exist in the graph.
+        """
         if isinstance(obj, UUID):
             return self.nodes[obj]
 
         return self.nodes[self._object_index[id(obj)]]
 
     def __iter__(self) -> Iterator[GraphNode]:
+        """Iterate over the graph nodes.
+
+        Returns
+        -------
+        Iterator[GraphNode]
+            Iterator over the graph nodes in insertion order.
+        """
         return iter(self.nodes.values())
 
     def by_identifier(self, identifier: str) -> GraphNode:
+        """Return the graph node with the given LinkML identifier.
+
+        Parameters
+        ----------
+        identifier
+            Value of the LinkML identifier slot.
+
+        Returns
+        -------
+        GraphNode
+            Node corresponding to the specified LinkML identifier.
+
+        Raises
+        ------
+        KeyError
+            If no node with the given identifier exists in the graph.
+        """
         return self.nodes[self._identifier_index[identifier]]
 
     def _discover_zarr_group(

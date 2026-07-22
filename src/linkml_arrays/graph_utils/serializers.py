@@ -1,3 +1,12 @@
+"""Graph-based serializers for LinkML labeled array models.
+
+The serializers in this module operate on an ``ObjectGraph`` rather than
+directly traversing instantiated LinkML objects. This separates graph
+construction from serialization and provides a common intermediate
+representation for YAML, YAML with external array storage, HDF5, and
+Zarr serialization.
+"""
+
 from collections.abc import Callable
 from pathlib import Path
 
@@ -11,6 +20,14 @@ from linkml_arrays.graph_utils.graph import GraphNode, ObjectGraph
 
 
 class YAMLGraphArraySerializer:
+    """Serialize an ObjectGraph to a YAML representation with external arrays.
+
+    Object-valued LinkML attributes are serialized as nested YAML
+    mappings, while array-valued attributes are written to external files
+    using a caller-provided array writer. The YAML document stores
+    references to the external array files.
+    """
+
     def __init__(
         self,
         graph: ObjectGraph,
@@ -19,6 +36,21 @@ class YAMLGraphArraySerializer:
         write_array: Callable,
         array_format: str,
     ):
+        """Initialize the serializer.
+
+        Parameters
+        ----------
+        graph
+            Object graph to serialize.
+        schemaview
+            SchemaView describing the LinkML schema.
+        output_dir
+            Directory in which external array files are written.
+        write_array
+            Callable responsible for writing an array to disk.
+        array_format
+            Name of the external array format recorded in the YAML output.
+        """
         self.graph = graph
         self.schemaview = schemaview
         self.output_dir = output_dir
@@ -28,6 +60,12 @@ class YAMLGraphArraySerializer:
         self.serialized = {}
 
     def make_filename(self, node: GraphNode, slot) -> Path:
+        """Construct an output filename for an array-valued attribute.
+
+        Array filenames are derived from the identifier of the owning object
+        when available. Otherwise, the filename is derived from the identifier
+        of the parent object together with the intervening LinkML attribute.
+        """
         if node.identifier is not None:
             return self.output_dir / f"{node.identifier}.{slot.name}"
 
@@ -41,12 +79,28 @@ class YAMLGraphArraySerializer:
         raise ValueError(f"Cannot determine filename for {node.class_name}")
 
     def serialize(self):
+        """Serialize the graph into a nested YAML-compatible dictionary.
+
+        Nodes are serialized in dependency order so that referenced child
+        objects are available before their parents are constructed.
+
+        Returns
+        -------
+        dict
+            Serialized representation of the root object.
+        """
         for node in self.graph.dependency_order():
             self.serialized[node.key] = self.serialize_node(node)
 
         return self.serialized[self.graph.root]
 
     def serialize_node(self, node):
+        """Serialize a single graph node.
+
+        Array-valued attributes are replaced with external array references,
+        object-valued attributes are replaced with serialized child mappings,
+        and scalar attributes are copied directly.
+        """
         result = {}
 
         for slot_name, value in vars(node.obj).items():
@@ -84,12 +138,30 @@ class YAMLGraphArraySerializer:
 
 
 class Hdf5GraphSerializer:
+    """Serialize an ObjectGraph into an HDF5 hierarchy.
+
+    Each graph node becomes an HDF5 group, scalar attributes become
+    group attributes, array-valued attributes become datasets, and
+    object-valued attributes become child groups.
+    """
+
     def __init__(
         self,
         graph: ObjectGraph,
         schemaview: SchemaView,
         h5file: h5py.File,
     ):
+        """Initialize the HDF5 serializer.
+
+        Parameters
+        ----------
+        graph
+            Object graph to serialize.
+        schemaview
+            SchemaView describing the LinkML schema.
+        h5file
+            Open HDF5 file that will receive the serialized model.
+        """
         self.graph = graph
         self.schemaview = schemaview
         self.h5file = h5file
@@ -97,6 +169,11 @@ class Hdf5GraphSerializer:
         self.groups: dict[int, h5py.Group] = {}
 
     def serialize(self):
+        """Write the complete graph to the HDF5 file.
+
+        Nodes are visited in hierarchy order so that parent groups are created
+        before child groups.
+        """
         root = self.graph[self.graph.root]
         self.groups[root.key] = self.h5file
 
@@ -104,6 +181,7 @@ class Hdf5GraphSerializer:
             self.serialize_node(node)
 
     def serialize_node(self, node: GraphNode):
+        """Serialize a single graph node as an HDF5 group."""
         if node.key not in self.groups:
             edge = node.incoming[0]
             parent_group = self.groups[edge.parent]
@@ -130,12 +208,30 @@ class Hdf5GraphSerializer:
 
 
 class ZarrGraphSerializer:
+    """Serialize an ObjectGraph into a Zarr hierarchy.
+
+    Each graph node becomes a Zarr group, scalar attributes become group
+    attributes, array-valued attributes become Zarr arrays, and
+    object-valued attributes become child groups.
+    """
+
     def __init__(
         self,
         graph: ObjectGraph,
         schemaview: SchemaView,
         root: zarr.Group,
     ):
+        """Initialize the Zarr serializer.
+
+        Parameters
+        ----------
+        graph
+            Object graph to serialize.
+        schemaview
+            SchemaView describing the LinkML schema.
+        root
+            Root Zarr group that will receive the serialized model.
+        """
         self.graph = graph
         self.schemaview = schemaview
         self.root = root
@@ -143,6 +239,11 @@ class ZarrGraphSerializer:
         self.groups: dict[int, zarr.Group] = {}
 
     def serialize(self):
+        """Write the complete graph to the Zarr hierarchy.
+
+        Nodes are visited in hierarchy order so that parent groups are created
+        before child groups.
+        """
         root_node = self.graph[self.graph.root]
         self.groups[root_node.key] = self.root
 
@@ -150,6 +251,7 @@ class ZarrGraphSerializer:
             self.serialize_node(node)
 
     def serialize_node(self, node: GraphNode):
+        """Serialize a single graph node as a Zarr group."""
         if node.key not in self.groups:
             edge = node.incoming[0]
             parent_group = self.groups[edge.parent]
@@ -177,22 +279,48 @@ class ZarrGraphSerializer:
 
 
 class YamlGraphSerializer:
+    """Serialize an ObjectGraph into a nested YAML representation.
+
+    All arrays remain embedded within the YAML document and object-valued
+    LinkML attributes are represented as nested mappings.
+    """
+
     def __init__(
         self,
         graph: ObjectGraph,
         schemaview: SchemaView,
     ):
+        """Initialize the YAML serializer.
+
+        Parameters
+        ----------
+        graph
+            Object graph to serialize.
+        schemaview
+            SchemaView describing the LinkML schema.
+        """
         self.graph = graph
         self.schemaview = schemaview
         self.serialized: dict[int, dict] = {}
 
     def serialize(self) -> dict:
+        """Serialize the graph into a nested YAML-compatible dictionary.
+
+        Nodes are serialized in dependency order so that child objects are
+        available before their parents.
+
+        Returns
+        -------
+        dict
+            Serialized representation of the root object.
+        """
         for node in self.graph.dependency_order():
             self.serialized[node.key] = self.serialize_node(node)
 
         return self.serialized[self.graph.root]
 
     def serialize_node(self, node: GraphNode) -> dict:
+        """Serialize a single graph node into a YAML-compatible mapping."""
         result = {}
 
         for slot_name, value in vars(node.obj).items():
