@@ -159,7 +159,10 @@ class ObjectGraph:
         return id(obj) in self._object_index
 
     def __getitem__(self, obj: BaseModel | int):
-        return self.nodes[obj]
+        if isinstance(obj, UUID):
+            return self.nodes[obj]
+
+        return self.nodes[self._object_index[id(obj)]]
 
     def __iter__(self) -> Iterator[GraphNode]:
         return iter(self.nodes.values())
