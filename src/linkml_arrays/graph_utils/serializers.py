@@ -9,6 +9,8 @@ Zarr serialization.
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
+from uuid import UUID
 
 import h5py
 import numpy as np
@@ -57,7 +59,7 @@ class YAMLGraphArraySerializer:
         self.write_array = write_array
         self.array_format = array_format
 
-        self.serialized = {}
+        self.serialized: dict[UUID, dict[str, Any]] = {}
 
     def make_filename(self, node: GraphNode, slot) -> Path:
         """Construct an output filename for an array-valued attribute.
@@ -166,7 +168,7 @@ class Hdf5GraphSerializer:
         self.schemaview = schemaview
         self.h5file = h5file
 
-        self.groups: dict[int, h5py.Group] = {}
+        self.groups: dict[UUID, h5py.Group] = {}
 
     def serialize(self):
         """Write the complete graph to the HDF5 file.
@@ -236,7 +238,7 @@ class ZarrGraphSerializer:
         self.schemaview = schemaview
         self.root = root
 
-        self.groups: dict[int, zarr.Group] = {}
+        self.groups: dict[UUID, zarr.Group] = {}
 
     def serialize(self):
         """Write the complete graph to the Zarr hierarchy.
@@ -301,7 +303,7 @@ class YamlGraphSerializer:
         """
         self.graph = graph
         self.schemaview = schemaview
-        self.serialized: dict[int, dict] = {}
+        self.serialized: dict[UUID, dict] = {}
 
     def serialize(self) -> dict:
         """Serialize the graph into a nested YAML-compatible dictionary.
@@ -316,7 +318,7 @@ class YamlGraphSerializer:
         """
         for node in self.graph.dependency_order():
             self.serialized[node.key] = self.serialize_node(node)
-
+        assert self.graph.root is not None
         return self.serialized[self.graph.root]
 
     def serialize_node(self, node: GraphNode) -> dict:

@@ -918,7 +918,7 @@ class ObjectGraph:
         GraphNode
             Graph nodes in dependency order.
         """
-        ts = TopologicalSorter()
+        ts: TopologicalSorter[UUID] = TopologicalSorter()
 
         for node in self.nodes.values():
             ts.add(
