@@ -27,6 +27,8 @@ from tests.array_classes_lol import (
 )
 
 INPUT_DIR = Path(__file__).parent.parent / "input"
+OUTPUT_DIR = Path(__file__).parents[2] / "out"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _create_container() -> Container:
