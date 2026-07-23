@@ -369,7 +369,7 @@ class ObjectGraph:
         graph = cls()
 
         if isinstance(source, (str, Path)):
-            if Path(source).exists():
+            if Path(source).exists(follow_symlinks=False):
                 with open(source) as f:
                     data = yaml.safe_load(f)
                 base_path = Path(source).parent
