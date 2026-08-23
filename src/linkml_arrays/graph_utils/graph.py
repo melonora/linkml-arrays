@@ -1,4 +1,36 @@
-"""Backend independent graph representation of labeled array linkml model."""
+"""Backend independent graph representation of labeled array linkml model.
+
+This module provides an intermediate representation between a LinkML model
+and its serialzied forms. Rather than having each serializer traverse the
+Pydantic object hierarchy, a model is first converted into an `ObjectGraph`.
+Serializers and deserializers than operate on this graph.
+
+The mapping from LinkML to the graph is as follows:
+- Each instance of a LinkML class is represented by a `GraphNode`.
+- Scalar and array-valued slots are stored in `GraphNode.values`.
+- Object / class valued slots are represented by `GraphEdge` objects connecting
+the corresponding nodes.
+- LinkML slot properties needed during serialization, such as `multivalued` and
+`inlined`, are retained on the `GraphEdge`.
+- The value of a LinkML identifier slot, when present, is stored separately as
+`GraphNode.identifier`.
+
+Every graph node also has a UUID key. This key is internal to the graph and should not
+be confused with a LinkML identifier. A LinkML identifier is part of the data model and
+may be meaningful outside the graph, whereas the UUID only provides an unambigous way to
+refer to a node and construct edges between nodes. This is the case even in the absence
+of a LinkML identifier and thus can always be used to represent a relationship between
+2 `GraphNode` in an `ObjectGraph`.
+
+`SchemaView` provides the LinkML schema information needed to construct the `ObjectGraph`.
+In particular, it allows for distinguishing ordinary values and arrays from relationships
+to other LinkML class instances and to retain relevant slot metadata.
+
+The resulting `ObjectGraph` acts as a boundary between the LinkML labeled array object
+model and storage backends. YAML, HDF5, Zarr, xarray and other (future) serializers can
+therefore share the same representation of objects and relationships while remaining
+responsible for their own storage-specific layout.
+"""
 
 from __future__ import annotations
 
