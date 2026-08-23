@@ -856,53 +856,114 @@ class ObjectGraph:
         schemaview
             SchemaView describing the LinkML schema.
         """
+        if value is None:
+            parent.values[slot.name] = None
+            return
+
+        if slot.array:
+            parent.values[slot.name] = value
+            return
+
+        child_class = schemaview.get_class(slot.range)
+
+        if child_class is None:
+            parent.values[slot.name] = value
+            return
+
         if isinstance(value, BaseModel):
-            child = self._discover(value, schemaview)
-
-            edge = GraphEdge(
-                parent=parent.key,
-                child=child.key,
-                slot_name=slot.name,
+            self._add_child(
+                parent=parent,
+                child_obj=value,
+                slot=slot,
+                schemaview=schemaview,
                 multivalued=False,
-                inlined=bool(slot.inlined),
             )
-
-            parent.outgoing.append(edge)
-            child.incoming.append(edge)
-
             return
 
         if isinstance(value, dict):
-            for item in value.values():
-                self._discover_value(
-                    item,
-                    parent,
-                    slot,
-                    schemaview,
-                )
-
+            values = value.values()
+        elif isinstance(value, (list, tuple, set)):
+            values = value
+        else:
+            parent.values[slot.name] = value
             return
 
-        if isinstance(value, (list, tuple, set)):
-            for item in value:
-                if not isinstance(item, BaseModel):
-                    continue
+        for child_obj in values:
+            self._add_child(
+                parent=parent,
+                child_obj=child_obj,
+                slot=slot,
+                schemaview=schemaview,
+                multivalued=True,
+            )
+        # if isinstance(value, BaseModel):
+        #     child = self._discover(value, schemaview)
+        #
+        #     edge = GraphEdge(
+        #         parent=parent.key,
+        #         child=child.key,
+        #         slot_name=slot.name,
+        #         multivalued=False,
+        #         inlined=bool(slot.inlined),
+        #     )
+        #
+        #     parent.outgoing.append(edge)
+        #     child.incoming.append(edge)
+        #
+        #     return
+        #
+        # if isinstance(value, dict):
+        #     for item in value.values():
+        #         self._discover_value(
+        #             item,
+        #             parent,
+        #             slot,
+        #             schemaview,
+        #         )
+        #
+        #     return
+        #
+        # if isinstance(value, (list, tuple, set)):
+        #     for item in value:
+        #         if not isinstance(item, BaseModel):
+        #             continue
+        #
+        #         child = self._discover(
+        #             item,
+        #             schemaview,
+        #         )
+        #
+        #         edge = GraphEdge(
+        #             parent=parent.key,
+        #             child=child.key,
+        #             slot_name=slot.name,
+        #             multivalued=True,
+        #             inlined=bool(slot.inlined),
+        #         )
+        #
+        #         parent.outgoing.append(edge)
+        #         child.incoming.append(edge)
 
-                child = self._discover(
-                    item,
-                    schemaview,
-                )
+    def _add_child(
+            self,
+            parent: GraphNode,
+            child_obj: BaseModel,
+            slot,
+            schemaview: SchemaView,
+            multivalued: bool,
+    ) -> None:
+        child = self._discover(child_obj, schemaview)
 
-                edge = GraphEdge(
-                    parent=parent.key,
-                    child=child.key,
-                    slot_name=slot.name,
-                    multivalued=True,
-                    inlined=bool(slot.inlined),
-                )
+        edge = GraphEdge(
+            parent=parent.key,
+            child=child.key,
+            slot_name=slot.name,
+            multivalued=multivalued,
+            inlined=bool(slot.inlined),
+        )
 
-                parent.outgoing.append(edge)
-                child.incoming.append(edge)
+        parent.outgoing.append(edge)
+        child.incoming.append(edge)
 
     def dependency_order(self) -> Iterator[GraphNode]:
         """Iterate over graph nodes in dependency order.
