@@ -8,6 +8,7 @@ import numpy as np
 import zarr
 from linkml_runtime import SchemaView
 from ruamel.yaml import YAML
+from xarray import open_datatree
 
 from linkml_arrays.dumpers import (
     Hdf5Dumper,
@@ -16,6 +17,9 @@ from linkml_arrays.dumpers import (
     YamlNumpyDumper,
     ZarrDirectoryStoreDumper,
 )
+from linkml_arrays.dumpers.xarray_dumpers import XarrayNetCDFDumper, XarrayZarrDumper
+from linkml_arrays.graph_utils.graph import ObjectGraph
+from linkml_arrays.graph_utils.serializers import XarrayGraphSerializer
 from tests.array_classes_lol import (
     Container,
     DateSeries,
@@ -169,3 +173,65 @@ def test_zarr_directory_store_dumper(tmp_path):
         root["temperature_dataset/temperatures_in_K/values"][:],
         [[[0, 1], [2, 3]], [[4, 5], [6, 7]]],
     )
+
+
+def test_xarray_zarr_dumper(tmp_path):
+    container = _create_container()
+    schemaview = SchemaView(INPUT_DIR / "temperature_schema.yaml")
+    output_file_path = tmp_path / "my_container_xarray.zarr"
+    XarrayZarrDumper().dump(container, to_file=output_file_path, schemaview=schemaview)
+
+    assert os.path.exists(output_file_path)
+    root = zarr.group(store=output_file_path)
+    assert root.attrs["name"] == "my_container"
+    np.testing.assert_array_equal(root["latitude_series"][:], [[1, 2], [3, 4]])
+
+    np.testing.assert_array_equal(root["longitude_series"][:], [[5, 6], [7, 8]])
+    assert set(root["temperature_dataset"]) == set(["date", "day_in_d", "temperatures_in_K"])
+
+    # Below reference date seems to be added automatically when using pd.to_datetime
+    np.testing.assert_array_equal(
+        root["temperature_dataset/date"][:], np.array(['2020-01-01', '2020-01-02'])
+    )
+
+    assert root["temperature_dataset/day_in_d"].attrs["reference_date"] == '2020-01-01'
+    np.testing.assert_array_equal(root["temperature_dataset/day_in_d"][:], [0, 1])
+    np.testing.assert_array_equal(
+        root["temperature_dataset/temperatures_in_K"][:],
+        [[[0, 1], [2, 3]], [[4, 5], [6, 7]]],
+    )
+    assert root["temperature_dataset/temperatures_in_K"].attrs["conversion_factor"] == 1000
+
+    assert root["temperature_dataset"].attrs["name"] == "my_temperature"
+    # Check possibility of reference date being another coords with dims set to date.
+    assert root["temperature_dataset"].attrs["latitude_in_deg"] == "my_latitude"
+    assert root["temperature_dataset"].attrs["longitude_in_deg"] == "my_longitude"
+
+
+def test_xarray_netcdf_dumper(tmp_path):
+    container = _create_container()
+    schemaview = SchemaView(INPUT_DIR / "temperature_schema.yaml")
+    output_file_path = tmp_path / "my_container.nc"
+    XarrayNetCDFDumper().dump(container, to_file=output_file_path, schemaview=schemaview)
+
+    assert os.path.exists(output_file_path)
+    datatree = open_datatree(output_file_path, engine='h5netcdf')
+
+    assert datatree.attrs['name'] == 'my_container'
+    np.testing.assert_array_equal(datatree["latitude_series"].data, [[1, 2], [3, 4]])
+    np.testing.assert_array_equal(datatree["longitude_series"].data, [[5, 6], [7, 8]])
+    assert list(datatree["temperature_dataset"].coords.keys()) == ['date', 'day_in_d']
+
+    np.testing.assert_array_equal(
+        datatree["temperature_dataset"].coords["date"].values, np.array(["2020-01-01", "2020-01-02"])
+    )
+    np.testing.assert_array_equal(datatree["temperature_dataset"]["day_in_d"].values, [0, 1])
+    assert datatree["temperature_dataset"]["day_in_d"].attrs["reference_date"] == '2020-01-01'
+    np.testing.assert_array_equal(datatree["temperature_dataset"]["temperatures_in_K"].values,
+                                  [[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
+    assert datatree["temperature_dataset"].data_vars["temperatures_in_K"].attrs["conversion_factor"] == 1000
+
+    assert datatree["temperature_dataset"].attrs["name"] == "my_temperature"
+    # Check possibility of reference date being another coords with dims set to date.
+    assert datatree["temperature_dataset"].attrs["latitude_in_deg"] == "my_latitude"
+    assert datatree["temperature_dataset"].attrs["longitude_in_deg"] == "my_longitude"
