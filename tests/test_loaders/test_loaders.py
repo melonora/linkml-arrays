@@ -108,15 +108,15 @@ def test_zarr_directory_store_loader():
 
 def test_xarray_zarr_loader():
     """Test loading of pydantic-style classes from xarray zarr datasets."""
-    file_path = str(Path(__file__).parent / "input" / "my_container_xarray.zarr")
-    schemaview = SchemaView(Path(__file__).parent / "input/temperature_schema.yaml")
+    file_path = str(Path(__file__).parent.parent / "input" / "my_container.zarr")
+    schemaview = SchemaView(Path(__file__) / "../../input/temperature_schema.yaml")
     container = XarrayZarrLoader().loads(file_path, target_class=Container, schemaview=schemaview)
     _check_container(container)
 
 
 def test_xarray_netcdf_loader():
     """Test loading of pydantic-style classes from xarray zarr datasets."""
-    file_path = str(Path(__file__).parent / "input" / "my_container.nc")
-    schemaview = SchemaView(Path(__file__).parent / "input/temperature_schema.yaml")
+    file_path = str(Path(__file__).parent.parent / "input" / "my_container.zarr")
+    schemaview = SchemaView(Path(__file__) / "../../input/temperature_schema.yaml")
     container = XarrayNetCDFLoader().loads(file_path, target_class=Container, schemaview=schemaview)
     _check_container(container)
