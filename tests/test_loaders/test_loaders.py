@@ -10,6 +10,7 @@ from linkml_arrays.loaders import (
     YamlLoader,
     ZarrDirectoryStoreLoader,
 )
+from linkml_arrays.loaders.xarray_loaders import XarrayZarrLoader, XarrayNetCDFLoader
 from tests.array_classes_lol import (
     Container,
     DateSeries,
@@ -102,4 +103,20 @@ def test_zarr_directory_store_loader():
     container = ZarrDirectoryStoreLoader().loads(
         file_path, target_class=Container, schemaview=schemaview
     )
+    _check_container(container)
+
+
+def test_xarray_zarr_loader():
+    """Test loading of pydantic-style classes from xarray zarr datasets."""
+    file_path = str(Path(__file__).parent / "input" / "my_container_xarray.zarr")
+    schemaview = SchemaView(Path(__file__).parent / "input/temperature_schema.yaml")
+    container = XarrayZarrLoader().loads(file_path, target_class=Container, schemaview=schemaview)
+    _check_container(container)
+
+
+def test_xarray_netcdf_loader():
+    """Test loading of pydantic-style classes from xarray zarr datasets."""
+    file_path = str(Path(__file__).parent / "input" / "my_container.nc")
+    schemaview = SchemaView(Path(__file__).parent / "input/temperature_schema.yaml")
+    container = XarrayNetCDFLoader().loads(file_path, target_class=Container, schemaview=schemaview)
     _check_container(container)
