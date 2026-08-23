@@ -43,6 +43,9 @@ from uuid import UUID, uuid4
 
 import h5py
 import numpy as np
+import xarray as xr
+from xarray import DataTree
+
 import yaml
 import zarr
 from linkml_runtime import SchemaView
@@ -428,6 +431,31 @@ class ObjectGraph:
 
         return graph
 
+    @classmethod
+    def from_xarray(
+            cls,
+            source: DataTree,
+            schemaview: SchemaView,
+            root_class: str,
+    ) -> "ObjectGraph":
+        graph = cls()
+
+        schema_class = schemaview.get_class(root_class)
+
+        if not schema_class:
+            raise ValueError(
+                f"Root class {root_class} not found in schema."
+            )
+
+        root = graph._discover_xarray_node(
+            tree=source,
+            class_definition=schema_class,
+            schemaview=schemaview,
+        )
+
+        graph.root = root.key
+        return graph
+
     def __contains__(self, obj: BaseModel | UUID) -> bool:
         """Return whether a node exists in the graph.
 
@@ -661,6 +689,116 @@ class ObjectGraph:
             node.outgoing.append(edge)
             child.incoming.append(edge)
 
+        return node
+
+    def _discover_xarray_node(
+            self,
+            tree: DataTree,
+            class_definition: ClassDefinition,
+            schemaview: SchemaView,
+    ) -> GraphNode:
+        node = GraphNode(
+            class_name=class_definition.name,
+        )
+        self.nodes[node.key] = node
+        for name, value in tree.attrs.items():
+            node.values[str(name)] = value
+
+        dataset = tree.to_dataset()
+
+        for name in dict.fromkeys([*dataset.coords, *dataset.data_vars]):
+            array = dataset[name]
+
+            slot = schemaview.induced_slot(
+                name,
+                class_definition.name,
+            )
+
+            child_class = schemaview.get_class(slot.range)
+            if child_class is None:
+                raise ValueError(
+                    f"Slot '{name}' on {class_definition.name} "
+                    "does not have a class range."
+                )
+
+            child = self._discover_xarray_array(
+                array=array,
+                class_definition=child_class,
+                schemaview=schemaview,
+            )
+            edge = GraphEdge(
+                parent=node.key,
+                child=child.key,
+                slot_name=str(slot.name),
+                multivalued=bool(slot.multivalued),
+                inlined=bool(slot.inlined),
+            )
+
+            node.outgoing.append(edge)
+            child.incoming.append(edge)
+
+        for name, child_tree in tree.children.items():
+            slot = schemaview.induced_slot(
+                name,
+                class_definition.name,
+            )
+
+            child_class = schemaview.get_class(slot.range)
+
+            if child_class is None:
+                raise ValueError(
+                    f"Expected slot '{name}' on "
+                    f"{class_definition.name} to have a class range."
+                )
+
+            child = self._discover_xarray_node(
+                tree=child_tree,
+                class_definition=child_class,
+                schemaview=schemaview,
+            )
+            edge = GraphEdge(
+                parent=node.key,
+                child=child.key,
+                slot_name=str(slot.name),
+                multivalued=bool(slot.multivalued),
+                inlined=bool(slot.inlined),
+            )
+
+            node.outgoing.append(edge)
+            child.incoming.append(edge)
+        return node
+
+    def _discover_xarray_array(
+            self,
+            array: xr.DataArray,
+            class_definition: ClassDefinition,
+            schemaview: SchemaView,
+    ) -> GraphNode:
+        node = GraphNode(
+            class_name=class_definition.name,
+        )
+
+        self.nodes[node.key] = node
+        array_slot = None
+
+        for slot_name in schemaview.class_slots(class_definition.name):
+            slot = schemaview.induced_slot(
+                slot_name,
+                class_definition.name,
+            )
+            if slot.array:
+                array_slot = slot
+                break
+
+        if array_slot is None:
+            raise ValueError(
+                f"{class_definition.name} has no array-valued slot."
+            )
+
+        node.values[str(array_slot.name)] = array.values
+
+        for name, value in array.attrs.items():
+            node.values[str(name)] = value
         return node
 
     def _discover_yaml_dict(
@@ -929,53 +1067,6 @@ class ObjectGraph:
                 schemaview=schemaview,
                 multivalued=True,
             )
-        # if isinstance(value, BaseModel):
-        #     child = self._discover(value, schemaview)
-        #
-        #     edge = GraphEdge(
-        #         parent=parent.key,
-        #         child=child.key,
-        #         slot_name=slot.name,
-        #         multivalued=False,
-        #         inlined=bool(slot.inlined),
-        #     )
-        #
-        #     parent.outgoing.append(edge)
-        #     child.incoming.append(edge)
-        #
-        #     return
-        #
-        # if isinstance(value, dict):
-        #     for item in value.values():
-        #         self._discover_value(
-        #             item,
-        #             parent,
-        #             slot,
-        #             schemaview,
-        #         )
-        #
-        #     return
-        #
-        # if isinstance(value, (list, tuple, set)):
-        #     for item in value:
-        #         if not isinstance(item, BaseModel):
-        #             continue
-        #
-        #         child = self._discover(
-        #             item,
-        #             schemaview,
-        #         )
-        #
-        #         edge = GraphEdge(
-        #             parent=parent.key,
-        #             child=child.key,
-        #             slot_name=slot.name,
-        #             multivalued=True,
-        #             inlined=bool(slot.inlined),
-        #         )
-        #
-        #         parent.outgoing.append(edge)
-        #         child.incoming.append(edge)
 
     def _add_child(
             self,
