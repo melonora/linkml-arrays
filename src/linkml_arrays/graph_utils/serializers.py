@@ -323,19 +323,14 @@ class YamlGraphSerializer:
 
     def serialize_node(self, node: GraphNode) -> dict:
         """Serialize a single graph node into a YAML-compatible mapping."""
-        result = {}
+        result = dict(node.values)
 
-        for slot_name, value in vars(node.obj).items():
-            slot = self.schemaview.induced_slot(
-                slot_name,
-                node.class_name,
-            )
+        for edge in node.outgoing:
+            child = self.serialized[edge.child]
 
-            if slot.array:
-                result[slot_name] = value
-            elif isinstance(value, BaseModel):
-                result[slot_name] = self.serialized[self.graph[value].key]
+            if edge.multivalued:
+                result.setdefault(edge.slot_name, []).append(child)
             else:
-                result[slot_name] = value
+                result[edge.slot_name] = child
 
         return result
