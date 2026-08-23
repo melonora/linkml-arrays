@@ -199,7 +199,7 @@ class Hdf5GraphSerializer:
 
         group = self.groups[node.key]
 
-        for slot_name, value in vars(node.obj).items():
+        for slot_name, value in node.values.items():
             slot = self.schemaview.induced_slot(
                 slot_name,
                 node.class_name,
@@ -210,8 +210,6 @@ class Hdf5GraphSerializer:
                     slot.name,
                     data=value,
                 )
-            elif isinstance(value, BaseModel):
-                pass
             else:
                 group.attrs[slot_name] = value
 
@@ -270,7 +268,7 @@ class ZarrGraphSerializer:
 
         group = self.groups[node.key]
 
-        for slot_name, value in vars(node.obj).items():
+        for slot_name, value in node.values.items():
             slot = self.schemaview.induced_slot(
                 slot_name,
                 node.class_name,
