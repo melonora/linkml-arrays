@@ -575,7 +575,7 @@ class ObjectGraph:
             edge = GraphEdge(
                 parent=node.key,
                 child=child.key,
-                slot_name=slot.name,
+                slot_name=str(slot.name),
                 multivalued=bool(slot.multivalued),
                 inlined=bool(slot.inlined),
             )
@@ -653,7 +653,7 @@ class ObjectGraph:
             edge = GraphEdge(
                 parent=node.key,
                 child=child.key,
-                slot_name=slot.name,
+                slot_name=str(slot.name),
                 multivalued=bool(slot.multivalued),
                 inlined=bool(slot.inlined),
             )
@@ -780,7 +780,7 @@ class ObjectGraph:
                 edge = GraphEdge(
                     parent=node.key,
                     child=child.key,
-                    slot_name=slot.name,
+                    slot_name=str(slot.name),
                     multivalued=bool(slot.multivalued),
                     inlined=bool(slot.inlined),
                 )
@@ -888,18 +888,19 @@ class ObjectGraph:
         schemaview
             SchemaView describing the LinkML schema.
         """
+        name = str(slot.name)
         if value is None:
-            parent.values[slot.name] = None
+            parent.values[name] = None
             return
 
         if slot.array:
-            parent.values[slot.name] = value
+            parent.values[name] = value
             return
 
         child_class = schemaview.get_class(slot.range)
 
         if child_class is None:
-            parent.values[slot.name] = value
+            parent.values[name] = value
             return
 
         if isinstance(value, BaseModel):
@@ -917,7 +918,7 @@ class ObjectGraph:
         elif isinstance(value, (list, tuple, set)):
             values = value
         else:
-            parent.values[slot.name] = value
+            parent.values[name] = value
             return
 
         for child_obj in values:
@@ -989,7 +990,7 @@ class ObjectGraph:
         edge = GraphEdge(
             parent=parent.key,
             child=child.key,
-            slot_name=slot.name,
+            slot_name=str(slot.name),
             multivalued=multivalued,
             inlined=bool(slot.inlined),
         )
