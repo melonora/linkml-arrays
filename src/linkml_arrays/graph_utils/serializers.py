@@ -105,7 +105,9 @@ class YAMLGraphArraySerializer:
         """
         result = {}
 
-        for slot_name, value in vars(node.obj).items():
+        # TODO: discuss whether there is a way to also get rid of using the schema here, e.g.
+        # can we purely use ObjectGraph?
+        for slot_name, value in node.values.items():
             slot = self.schemaview.induced_slot(
                 slot_name,
                 node.class_name,
@@ -130,11 +132,16 @@ class YAMLGraphArraySerializer:
                         }
                     ]
                 }
-
-            elif isinstance(value, BaseModel):
-                result[slot_name] = self.serialized[self.graph[value].key]
             else:
                 result[slot_name] = value
+
+        for edge in node.outgoing:
+            child = self.serialized[edge.child]
+
+            if edge.multivalued:
+                result.setdefault(edge.slot_name, []).append(child)
+            else:
+                result[edge.slot_name] = child
 
         return result
 
