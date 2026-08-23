@@ -15,10 +15,12 @@ from uuid import UUID
 import h5py
 import numpy as np
 import zarr
+import xarray as xr
+from xarray import DataTree
 from linkml_runtime import SchemaView
 from pydantic import BaseModel
 
-from linkml_arrays.graph_utils.graph import GraphNode, ObjectGraph
+from linkml_arrays.graph_utils.graph import GraphNode, ObjectGraph, GraphEdge
 
 
 class YAMLGraphArraySerializer:
@@ -339,3 +341,173 @@ class YamlGraphSerializer:
                 result[edge.slot_name] = child
 
         return result
+
+class XarrayGraphSerializer:
+    def __init__(
+        self,
+        graph: ObjectGraph,
+        schemaview: SchemaView,
+    ):
+        self.graph = graph
+        self.schemaview = schemaview
+
+    def serialize(self) -> DataTree:
+        if self.graph.root is None:
+            raise ValueError("ObjectGraph has no root node.")
+
+        root = self.graph[self.graph.root]
+        return self._serialize_node(root)
+
+    def _serialize_node(
+        self,
+        node: GraphNode,
+    ) -> DataTree:
+        attrs: dict[str, Any] = {}
+        coords: dict[str, xr.DataArray] = {}
+        data_vars: dict[str, xr.DataArray] = {}
+        children: dict[str, DataTree] = {}
+
+        for slot_name, value in node.values.items():
+            slot = self.schemaview.induced_slot(
+                slot_name,
+                node.class_name,
+            )
+
+            if slot.array:
+                data_vars[slot_name] = self._make_data_array(
+                    node=node,
+                    slot_name=slot_name,
+                    value=value,
+                )
+            else:
+                attrs[slot_name] = value
+
+        for edge in node.outgoing:
+            child = self.graph[edge.child]
+
+            if self._is_array_node(child):
+                array_slot_name, value = self._array_value(child)
+                data = np.asarray(value)
+
+                metadata = {
+                    name: child_value
+                    for name, child_value in child.values.items()
+                    if name != array_slot_name
+                }
+
+                if data.ndim == 1:
+                    if coords:
+                        dims = (next(iter(coords)),)
+                    else:
+                        dims = (edge.slot_name,)
+
+                    coords[edge.slot_name] = xr.DataArray(
+                        data=data,
+                        dims=dims,
+                        attrs=metadata,
+                    )
+
+                else:
+                    data_vars[edge.slot_name] = self._make_data_array(
+                        node=child,
+                        slot_name=array_slot_name,
+                        value=data,
+                        attrs=metadata,
+                    )
+
+            else:
+                children[edge.slot_name] = self._serialize_node(child)
+
+        dataset = xr.Dataset(
+            data_vars=data_vars,
+            coords=coords,
+            attrs=attrs,
+        )
+
+        tree = DataTree(dataset=dataset)
+
+        for name, child_tree in children.items():
+            tree[name] = child_tree
+
+        return tree
+
+    def _is_array_node(
+        self,
+        node: GraphNode,
+    ) -> bool:
+        for slot_name in node.values:
+            slot = self.schemaview.induced_slot(
+                slot_name,
+                node.class_name,
+            )
+
+            if slot.array:
+                return True
+
+        return False
+
+    def _array_value(
+        self,
+        node: GraphNode,
+    ) -> tuple[str, Any]:
+        for slot_name, value in node.values.items():
+            slot = self.schemaview.induced_slot(
+                slot_name,
+                node.class_name,
+            )
+
+            if slot.array:
+                return slot_name, value
+
+        raise ValueError(
+            f"{node.class_name} does not contain an array-valued slot."
+        )
+
+    def _array_dims(
+        self,
+        node: GraphNode,
+        slot_name: str,
+        value: Any,
+    ) -> tuple[str, ...]:
+        slot = self.schemaview.induced_slot(
+            slot_name,
+            node.class_name,
+        )
+
+        data = np.asarray(value)
+
+        dimensions = slot.array.dimensions or []
+
+        dims = tuple(
+            str(dimension.alias)
+            for dimension in dimensions
+            if dimension.alias is not None
+        )
+
+        if len(dims) == data.ndim:
+            return dims
+
+        return tuple(
+            f"dim_{i}"
+            for i in range(data.ndim)
+        )
+
+    def _make_data_array(
+        self,
+        node: GraphNode,
+        slot_name: str,
+        value: Any,
+        attrs: dict[str, Any] | None = None,
+    ) -> xr.DataArray:
+        """Construct a DataArray for an array-valued graph value."""
+        data = np.asarray(value)
+
+        return xr.DataArray(
+            data=data,
+            dims=self._array_dims(
+                node=node,
+                slot_name=slot_name,
+                value=data,
+            ),
+            attrs=attrs,
+        )
