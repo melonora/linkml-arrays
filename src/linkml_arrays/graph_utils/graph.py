@@ -895,6 +895,18 @@ class ObjectGraph:
                 elif fmt == "zarr":
                     z = zarr.open(file, mode="r")
                     node.values[name] = z["data"][()]
+                elif fmt == "xarray_netcdf":
+                    data_array = xr.open_dataarray(
+                        file,
+                        engine="h5netcdf",
+                    )
+                    node.values[name] = data_array.values
+                elif fmt == "xarray_zarr":
+                    data_array = xr.open_dataarray(
+                        file,
+                        engine="zarr",
+                    )
+                    node.values[name] = data_array.values
                 else:
                     raise ValueError(f"Unsupported array format '{fmt}'.")
                 continue
