@@ -82,7 +82,7 @@ class YAMLGraphArraySerializer:
 
         raise ValueError(f"Cannot determine filename for {node.class_name}")
 
-    def serialize(self):
+    def serialize(self, dir_path = None):
         """Serialize the graph into a nested YAML-compatible dictionary.
 
         Nodes are serialized in dependency order so that referenced child
@@ -94,11 +94,11 @@ class YAMLGraphArraySerializer:
             Serialized representation of the root object.
         """
         for node in self.graph.dependency_order():
-            self.serialized[node.key] = self.serialize_node(node)
+            self.serialized[node.key] = self.serialize_node(node, dir_path)
 
         return self.serialized[self.graph.root]
 
-    def serialize_node(self, node):
+    def serialize_node(self, node, dir_path):
         """Serialize a single graph node.
 
         Array-valued attributes are replaced with external array references,
@@ -126,10 +126,15 @@ class YAMLGraphArraySerializer:
                     filename,
                 )
 
+                if filename.is_absolute():
+                    yaml_file_value = output.as_posix()
+                else:
+                    yaml_file_value = f"./{output.as_posix()}"
+
                 result[slot_name] = {
                     "source": [
                         {
-                            "file": f"./{output.as_posix()}",
+                            "file": yaml_file_value,
                             "format": self.array_format,
                         }
                     ]

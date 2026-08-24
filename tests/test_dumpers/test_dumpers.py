@@ -17,9 +17,8 @@ from linkml_arrays.dumpers import (
     YamlNumpyDumper,
     ZarrDirectoryStoreDumper,
 )
-from linkml_arrays.dumpers.xarray_dumpers import XarrayNetCDFDumper, XarrayZarrDumper
-from linkml_arrays.graph_utils.graph import ObjectGraph
-from linkml_arrays.graph_utils.serializers import XarrayGraphSerializer
+from linkml_arrays.dumpers.xarray_dumpers import XarrayNetCDFDumper, XarrayZarrDumper, YamlXarrayNetCDFDumper, \
+    YamlXarrayZarrDumper
 from tests.array_classes_lol import (
     Container,
     DateSeries,
@@ -34,6 +33,20 @@ INPUT_DIR = Path(__file__).parent.parent / "input"
 OUTPUT_DIR = Path(__file__).parents[2] / "out"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+def normalize_source_paths(value):
+    if isinstance(value, dict):
+        return {
+            key: (
+                Path(item).name
+                if key == "file"
+                else normalize_source_paths(item)
+            )
+            for key, item in value.items()
+        }
+
+    if isinstance(value, list):
+        return [normalize_source_paths(item) for item in value]
+    return value
 
 def _create_container() -> Container:
     latitude_in_deg = LatitudeInDegSeries(name="my_latitude", values=[[1, 2], [3, 4]])
@@ -235,3 +248,44 @@ def test_xarray_netcdf_dumper(tmp_path):
     # Check possibility of reference date being another coords with dims set to date.
     assert datatree["temperature_dataset"].attrs["latitude_in_deg"] == "my_latitude"
     assert datatree["temperature_dataset"].attrs["longitude_in_deg"] == "my_longitude"
+
+def test_yaml_xarray_zarr_dumper(tmp_path):
+    """Test YamlXarrayDumper dumping to a YAML file and zarr datasets in a directory."""
+    container = _create_container()
+
+    output_yaml = tmp_path / "container_yaml_xarray_zarr.yaml"
+    schemaview = SchemaView(INPUT_DIR / "temperature_schema.yaml")
+
+    YamlXarrayZarrDumper().dump(
+        container,
+        to_file=output_yaml,
+        schemaview=schemaview,
+        output_dir=tmp_path / "xarray_zarr"
+    )
+    expected_yaml_file = INPUT_DIR / "container_yaml_xarray_zarr.yaml"
+    yaml = YAML(typ="safe")
+
+    with open(output_yaml) as f_actual, open(expected_yaml_file) as f_expected:
+        actual = yaml.load(f_actual)
+        expected = yaml.load(f_expected)
+
+    assert normalize_source_paths(actual) == normalize_source_paths(expected)
+
+def test_yaml_xarray_netcdf_dumper(tmp_path):
+    """Test YamlXarrayNetCDFDumper dumping to a YAML file and netcdf datasets in a directory."""
+    container = _create_container()
+
+    output_yaml = tmp_path / "container_yaml_xarray_netcdf.yaml"
+    output_dir = tmp_path / "xarray_netcdf"
+    output_dir.mkdir()
+    schemaview = SchemaView(INPUT_DIR / "temperature_schema.yaml")
+    YamlXarrayNetCDFDumper().dump(container, to_file=output_yaml, schemaview=schemaview, output_dir=output_dir)
+
+    # read and compare with the expected YAML file ignoring order of keys
+    expected_yaml_file = INPUT_DIR / "container_yaml_xarray_netcdf.yaml"
+    yaml = YAML(typ="safe")
+    with open(output_yaml) as f_actual, open(expected_yaml_file) as f_expected:
+        actual = yaml.load(f_actual)
+        expected = yaml.load(f_expected)
+    assert normalize_source_paths(actual) == normalize_source_paths(expected)
+

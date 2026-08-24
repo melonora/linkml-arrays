@@ -1,9 +1,13 @@
-from typing import Union
+from pathlib import Path
+from typing import Union, List
 
+import numpy as np
 from linkml_runtime import SchemaView
 from linkml_runtime.utils.yamlutils import YAMLRoot
 from pydantic import BaseModel
 
+import xarray as xr
+from linkml_arrays.dumpers.yaml_array_file_dumper import YamlArrayFileDumper
 from linkml_arrays.graph_utils.graph import ObjectGraph
 from linkml_runtime.dumpers.dumper_root import Dumper
 from linkml_arrays.graph_utils.serializers import XarrayGraphSerializer
@@ -65,3 +69,49 @@ class XarrayZarrDumper(Dumper):
         raise NotImplementedError(
             "This method is not sensible for this dumper."
         )
+
+class YamlXarrayNetCDFDumper(YamlArrayFileDumper):
+    FILE_SUFFIX = "_xarray.nc"
+    FORMAT = "netcdf"
+
+    @classmethod
+    def write_array(
+        cls,
+        array: Union[List, np.ndarray],
+        output_file_path_no_suffix: Union[str, Path],
+    ):
+        if isinstance(output_file_path_no_suffix, str):
+            output_file_path_no_suffix = Path(output_file_path_no_suffix)
+
+        output_file_path = output_file_path_no_suffix.parent / (
+            output_file_path_no_suffix.name + cls.FILE_SUFFIX
+        )
+
+        data_array = xr.DataArray(data=np.asarray(array))
+        data_array.to_netcdf(
+            output_file_path,
+            engine="h5netcdf",
+        )
+        return output_file_path
+
+
+class YamlXarrayZarrDumper(YamlArrayFileDumper):
+    FILE_SUFFIX = "_xarray.zarr"
+    FORMAT = "zarr"
+
+    @classmethod
+    def write_array(
+        cls,
+        array: Union[List, np.ndarray],
+        output_file_path_no_suffix: Union[str, Path],
+    ):
+        if isinstance(output_file_path_no_suffix, str):
+            output_file_path_no_suffix = Path(output_file_path_no_suffix)
+
+        output_file_path = output_file_path_no_suffix.parent / (
+            output_file_path_no_suffix.name + cls.FILE_SUFFIX
+        )
+
+        data_array = xr.DataArray(data=np.asarray(array))
+        data_array.to_zarr(output_file_path)
+        return output_file_path
