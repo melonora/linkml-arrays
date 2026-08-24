@@ -253,14 +253,14 @@ def test_yaml_xarray_zarr_dumper(tmp_path):
     """Test YamlXarrayDumper dumping to a YAML file and zarr datasets in a directory."""
     container = _create_container()
 
-    output_yaml = tmp_path / "container_yaml_xarray_zarr.yaml"
+    output_yaml = INPUT_DIR/ "container_yaml_xarray_zarr.yaml"
     schemaview = SchemaView(INPUT_DIR / "temperature_schema.yaml")
 
     YamlXarrayZarrDumper().dump(
         container,
         to_file=output_yaml,
         schemaview=schemaview,
-        output_dir=tmp_path / "xarray_zarr"
+        output_dir=INPUT_DIR / "xarray_zarr"
     )
     expected_yaml_file = INPUT_DIR / "container_yaml_xarray_zarr.yaml"
     yaml = YAML(typ="safe")
@@ -275,9 +275,9 @@ def test_yaml_xarray_netcdf_dumper(tmp_path):
     """Test YamlXarrayNetCDFDumper dumping to a YAML file and netcdf datasets in a directory."""
     container = _create_container()
 
-    output_yaml = tmp_path / "container_yaml_xarray_netcdf.yaml"
-    output_dir = tmp_path / "xarray_netcdf"
-    output_dir.mkdir()
+    output_yaml = INPUT_DIR / "container_yaml_xarray_netcdf.yaml"
+    output_dir = INPUT_DIR / "xarray_netcdf"
+    output_dir.mkdir(parents=True, exist_ok=True)
     schemaview = SchemaView(INPUT_DIR / "temperature_schema.yaml")
     YamlXarrayNetCDFDumper().dump(container, to_file=output_yaml, schemaview=schemaview, output_dir=output_dir)
 

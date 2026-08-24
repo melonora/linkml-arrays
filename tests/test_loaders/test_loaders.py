@@ -5,6 +5,7 @@ from pathlib import Path
 from hbreader import hbread
 from linkml_runtime import SchemaView
 
+from linkml_arrays.dumpers.xarray_dumpers import YamlXarrayZarrDumper, YamlXarrayNetCDFDumper
 from linkml_arrays.loaders import (
     Hdf5Loader,
     YamlLoader,

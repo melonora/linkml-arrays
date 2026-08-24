@@ -72,7 +72,7 @@ class XarrayZarrDumper(Dumper):
 
 class YamlXarrayNetCDFDumper(YamlArrayFileDumper):
     FILE_SUFFIX = "_xarray.nc"
-    FORMAT = "netcdf"
+    FORMAT = "xarray_netcdf"
 
     @classmethod
     def write_array(
@@ -97,7 +97,7 @@ class YamlXarrayNetCDFDumper(YamlArrayFileDumper):
 
 class YamlXarrayZarrDumper(YamlArrayFileDumper):
     FILE_SUFFIX = "_xarray.zarr"
-    FORMAT = "zarr"
+    FORMAT = "xarray_zarr"
 
     @classmethod
     def write_array(
