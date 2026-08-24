@@ -1,0 +1,34 @@
+latitude_series:
+  name: my_latitude
+  values:
+    source:
+    - file: C:/Users/Yuyao/PycharmProjects/PythonProject/linkml-arrays/tests/input/xarray_zarr/my_latitude.values_xarray.zarr
+      format: zarr
+longitude_series:
+  name: my_longitude
+  values:
+    source:
+    - file: C:/Users/Yuyao/PycharmProjects/PythonProject/linkml-arrays/tests/input/xarray_zarr/my_longitude.values_xarray.zarr
+      format: zarr
+name: my_container
+temperature_dataset:
+  date:
+    values:
+      source:
+      - file: C:/Users/Yuyao/PycharmProjects/PythonProject/linkml-arrays/tests/input/xarray_zarr/my_temperature.date.values_xarray.zarr
+        format: zarr
+  day_in_d:
+    reference_date: '2020-01-01'
+    values:
+      source:
+      - file: C:/Users/Yuyao/PycharmProjects/PythonProject/linkml-arrays/tests/input/xarray_zarr/my_temperature.day_in_d.values_xarray.zarr
+        format: zarr
+  latitude_in_deg: my_latitude
+  longitude_in_deg: my_longitude
+  name: my_temperature
+  temperatures_in_K:
+    conversion_factor: 1000.0
+    values:
+      source:
+      - file: C:/Users/Yuyao/PycharmProjects/PythonProject/linkml-arrays/tests/input/xarray_zarr/my_temperature.temperatures_in_K.values_xarray.zarr
+        format: zarr
