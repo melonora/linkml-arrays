@@ -20,7 +20,7 @@ from xarray import DataTree
 from linkml_runtime import SchemaView
 from pydantic import BaseModel
 
-from linkml_arrays.graph_utils.graph import GraphNode, ObjectGraph, GraphEdge
+from linkml_arrays.graph_utils.graph import GraphNode, ObjectGraph
 
 
 class YAMLGraphArraySerializer:
