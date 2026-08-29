@@ -30,7 +30,6 @@ class XarrayNetCDFDumper(Dumper):
 
         datatree = XarrayGraphSerializer(
             graph=graph,
-            schemaview=schemaview,
         ).serialize()
 
         datatree.to_netcdf(
@@ -60,7 +59,6 @@ class XarrayZarrDumper(Dumper):
 
         datatree = XarrayGraphSerializer(
             graph=graph,
-            schemaview=schemaview,
         ).serialize()
 
         datatree.to_zarr(to_file)

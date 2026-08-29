@@ -35,7 +35,6 @@ class YAMLGraphArraySerializer:
     def __init__(
         self,
         graph: ObjectGraph,
-        schemaview: SchemaView,
         output_dir: Path,
         write_array: Callable,
         array_format: str,
@@ -46,8 +45,6 @@ class YAMLGraphArraySerializer:
         ----------
         graph
             Object graph to serialize.
-        schemaview
-            SchemaView describing the LinkML schema.
         output_dir
             Directory in which external array files are written.
         write_array
@@ -56,14 +53,13 @@ class YAMLGraphArraySerializer:
             Name of the external array format recorded in the YAML output.
         """
         self.graph = graph
-        self.schemaview = schemaview
         self.output_dir = output_dir
         self.write_array = write_array
         self.array_format = array_format
 
         self.serialized: dict[UUID, dict[str, Any]] = {}
 
-    def make_filename(self, node: GraphNode, slot) -> Path:
+    def make_filename(self, node: GraphNode, slot_name) -> Path:
         """Construct an output filename for an array-valued attribute.
 
         Array filenames are derived from the identifier of the owning object
@@ -71,14 +67,14 @@ class YAMLGraphArraySerializer:
         of the parent object together with the intervening LinkML attribute.
         """
         if node.identifier is not None:
-            return self.output_dir / f"{node.identifier}.{slot.name}"
+            return self.output_dir / f"{node.identifier}.{slot_name}"
 
         if node.incoming:
             edge = node.incoming[0]
             parent = self.graph[edge.parent]
 
             if parent.identifier is not None:
-                return self.output_dir / f"{parent.identifier}.{edge.slot_name}.{slot.name}"
+                return self.output_dir / f"{parent.identifier}.{edge.slot_name}.{slot_name}"
 
         raise ValueError(f"Cannot determine filename for {node.class_name}")
 
@@ -110,22 +106,17 @@ class YAMLGraphArraySerializer:
         # TODO: discuss whether there is a way to also get rid of using the schema here, e.g.
         # can we purely use ObjectGraph?
         for slot_name, value in node.values.items():
-            slot = self.schemaview.induced_slot(
-                slot_name,
-                node.class_name,
-            )
-
-            if slot.array:
+            metadata = node.value_metadata.get(slot_name)
+            if metadata is not None and metadata.is_array:
                 filename = self.make_filename(
                     node,
-                    slot,
+                    slot_name,
                 )
 
                 output = self.write_array(
                     value,
                     filename,
                 )
-
                 if filename.is_absolute():
                     yaml_file_value = output.as_posix()
                 else:
@@ -164,7 +155,6 @@ class Hdf5GraphSerializer:
     def __init__(
         self,
         graph: ObjectGraph,
-        schemaview: SchemaView,
         h5file: h5py.File,
     ):
         """Initialize the HDF5 serializer.
@@ -173,13 +163,10 @@ class Hdf5GraphSerializer:
         ----------
         graph
             Object graph to serialize.
-        schemaview
-            SchemaView describing the LinkML schema.
         h5file
             Open HDF5 file that will receive the serialized model.
         """
         self.graph = graph
-        self.schemaview = schemaview
         self.h5file = h5file
 
         self.groups: dict[UUID, h5py.Group] = {}
@@ -207,14 +194,11 @@ class Hdf5GraphSerializer:
         group = self.groups[node.key]
 
         for slot_name, value in node.values.items():
-            slot = self.schemaview.induced_slot(
-                slot_name,
-                node.class_name,
-            )
+            metadata = node.value_metadata.get(slot_name)
+            if metadata is not None and metadata.is_array:
 
-            if slot.array:
                 group.create_dataset(
-                    slot.name,
+                    slot_name,
                     data=value,
                 )
             else:
@@ -232,7 +216,6 @@ class ZarrGraphSerializer:
     def __init__(
         self,
         graph: ObjectGraph,
-        schemaview: SchemaView,
         root: zarr.Group,
     ):
         """Initialize the Zarr serializer.
@@ -241,13 +224,10 @@ class ZarrGraphSerializer:
         ----------
         graph
             Object graph to serialize.
-        schemaview
-            SchemaView describing the LinkML schema.
         root
             Root Zarr group that will receive the serialized model.
         """
         self.graph = graph
-        self.schemaview = schemaview
         self.root = root
 
         self.groups: dict[UUID, zarr.Group] = {}
@@ -276,14 +256,10 @@ class ZarrGraphSerializer:
         group = self.groups[node.key]
 
         for slot_name, value in node.values.items():
-            slot = self.schemaview.induced_slot(
-                slot_name,
-                node.class_name,
-            )
-
-            if slot.array:
+            metadata = node.value_metadata.get(slot_name)
+            if metadata is not None and metadata.is_array:
                 group.create_array(
-                    slot.name,
+                    slot_name,
                     data=np.asarray(value),
                 )
             elif isinstance(value, BaseModel):
@@ -302,7 +278,6 @@ class YamlGraphSerializer:
     def __init__(
         self,
         graph: ObjectGraph,
-        schemaview: SchemaView,
     ):
         """Initialize the YAML serializer.
 
@@ -310,11 +285,8 @@ class YamlGraphSerializer:
         ----------
         graph
             Object graph to serialize.
-        schemaview
-            SchemaView describing the LinkML schema.
         """
         self.graph = graph
-        self.schemaview = schemaview
         self.serialized: dict[UUID, dict] = {}
 
     def serialize(self) -> dict:
@@ -351,10 +323,8 @@ class XarrayGraphSerializer:
     def __init__(
         self,
         graph: ObjectGraph,
-        schemaview: SchemaView,
     ):
         self.graph = graph
-        self.schemaview = schemaview
 
     def serialize(self) -> DataTree:
         if self.graph.root is None:
@@ -373,12 +343,8 @@ class XarrayGraphSerializer:
         children: dict[str, DataTree] = {}
 
         for slot_name, value in node.values.items():
-            slot = self.schemaview.induced_slot(
-                slot_name,
-                node.class_name,
-            )
-
-            if slot.array:
+            metadata = node.value_metadata.get(slot_name)
+            if metadata is not None and metadata.is_array:
                 data_vars[slot_name] = self._make_data_array(
                     node=node,
                     slot_name=slot_name,
@@ -391,7 +357,7 @@ class XarrayGraphSerializer:
             child = self.graph[edge.child]
 
             if self._is_array_node(child):
-                array_slot_name, value = self._array_value(child)
+                array_slot_name, value = self._find_array_value(child)
                 data = np.asarray(value)
 
                 metadata = {
@@ -436,66 +402,41 @@ class XarrayGraphSerializer:
 
         return tree
 
+    @staticmethod
     def _is_array_node(
-        self,
         node: GraphNode,
     ) -> bool:
-        for slot_name in node.values:
-            slot = self.schemaview.induced_slot(
-                slot_name,
-                node.class_name,
-            )
-
-            if slot.array:
-                return True
-
-        return False
-
-    def _array_value(
-        self,
-        node: GraphNode,
-    ) -> tuple[str, Any]:
-        for slot_name, value in node.values.items():
-            slot = self.schemaview.induced_slot(
-                slot_name,
-                node.class_name,
-            )
-
-            if slot.array:
-                return slot_name, value
-
-        raise ValueError(
-            f"{node.class_name} does not contain an array-valued slot."
+        return any(
+            metadata.is_array
+            for metadata in node.value_metadata.values()
         )
 
+    @staticmethod
+    def _find_array_value(
+            node: GraphNode,
+    ) -> tuple[str, Any]:
+        # TODO: works for now, but can we expect multiple arrays in a node?
+        for name, value in node.values.items():
+            if node.value_metadata[name].is_array:
+                return name, value
+
+        raise ValueError(
+            f"{node.class_name} does not contain an array-valued value."
+        )
+
+    @staticmethod
     def _array_dims(
-        self,
         node: GraphNode,
         slot_name: str,
         value: Any,
     ) -> tuple[str, ...]:
-        slot = self.schemaview.induced_slot(
-            slot_name,
-            node.class_name,
-        )
-
         data = np.asarray(value)
+        dimensions = node.value_metadata[slot_name].dimensions
 
-        dimensions = slot.array.dimensions or []
+        if dimensions is not None and len(dimensions) == data.ndim:
+            return dimensions
 
-        dims = tuple(
-            str(dimension.alias)
-            for dimension in dimensions
-            if dimension.alias is not None
-        )
-
-        if len(dims) == data.ndim:
-            return dims
-
-        return tuple(
-            f"dim_{i}"
-            for i in range(data.ndim)
-        )
+        return tuple(f"dim_{i}" for i in range(data.ndim))
 
     def _make_data_array(
         self,

@@ -54,6 +54,29 @@ from pydantic import BaseModel
 
 
 @dataclass(slots=True)
+class GraphValueMetadata:
+    """ Describe properties of a value stored in an ObjectGraph.
+
+    GraphValueMetadata contains backend-independent information needed to
+    interpret a value without referring back to its LinkML schema. When an
+    ObjectGraph is constructed from a LinkML model, this information is
+    derived from the corresponding slot definition.
+    In particular, `dimensions` represents the dimensions declared by a
+    LinkML array-valued slot. A value with dimensions is therefore considered
+    an array, while `None` indicates a non-array value.
+    This class exists to allow serializers to work without serializers.
+
+    Note: while only including dimensions currently, this could be expanded
+    """
+    # TODO: we should discuss what extra general fields could be useful here I think
+    dimensions: tuple[str, ...] | None = None
+
+    @property
+    def is_array(self) -> bool:
+        return self.dimensions is not None
+
+
+@dataclass(slots=True)
 class GraphEdge:
     """Directed edge representing an object-valued LinkML attribute.
 
@@ -135,6 +158,7 @@ class GraphNode:
     obj: BaseModel | None = None
     identifier: str | None = None
     values: dict[str, Any] = field(default_factory=dict)
+    value_metadata: dict[str, GraphValueMetadata] = field(default_factory=dict)
     incoming: list[GraphEdge] = field(default_factory=list)
     outgoing: list[GraphEdge] = field(default_factory=list)
     key: UUID = field(default_factory=uuid4, init=False)
@@ -1009,6 +1033,29 @@ class ObjectGraph:
 
         return node
 
+    def _set_value(
+            self,
+            node: GraphNode,
+            name: str,
+            value: Any,
+            slot,
+    ) -> None:
+        name = str(name)
+        node.values[name] = value
+
+        if slot.array is not None:
+            dimensions = tuple(
+                str(dimension.alias)
+                for dimension in slot.array.dimensions or []
+                if dimension.alias is not None
+            )
+        else:
+            dimensions = None
+
+        node.value_metadata[name] = GraphValueMetadata(
+            dimensions=dimensions,
+        )
+
     def _discover_value(
         self,
         value: Any,
@@ -1039,18 +1086,15 @@ class ObjectGraph:
             SchemaView describing the LinkML schema.
         """
         name = str(slot.name)
-        if value is None:
-            parent.values[name] = None
-            return
-
-        if slot.array:
-            parent.values[name] = value
-            return
-
         child_class = schemaview.get_class(slot.range)
 
-        if child_class is None:
-            parent.values[name] = value
+        if slot.array or child_class is None or value is None:
+            self._set_value(
+                node=parent,
+                name=name,
+                value=value,
+                slot=slot,
+            )
             return
 
         if isinstance(value, BaseModel):
