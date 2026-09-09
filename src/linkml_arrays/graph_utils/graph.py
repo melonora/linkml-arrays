@@ -427,16 +427,28 @@ class ObjectGraph:
         """
         graph = cls()
 
-        if isinstance(source, (str, Path)):
-            if Path(source).exists():
-                with open(source) as f:
-                    data = yaml.safe_load(f)
-                base_path = Path(source).parent
-            else:
-                data = yaml.safe_load(str(source))
+        if isinstance(source, Path):
+            with source.open() as f:
+                data = yaml.safe_load(f)
+            base_path = source.parent
+        elif isinstance(source, str):
+            if "\n" in source:
+                data = yaml.safe_load(source)
                 base_path = Path(".")
+            else:
+                source_path = Path(source)
+
+                if source_path.exists():
+                    with source_path.open() as f:
+                        data = yaml.safe_load(f)
+                    base_path = source_path.parent
+                else:
+                    data = yaml.safe_load(source)
+                    base_path = Path(".")
         else:
-            raise ValueError(f"Source should be of type Path or str, got {type(source)}")
+            raise ValueError(
+                f"Source should be of type Path or str, got {type(source)}"
+            )
 
         schema_class = schemaview.get_class(root_class)
 
