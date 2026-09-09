@@ -117,10 +117,7 @@ class YAMLGraphArraySerializer:
                     value,
                     filename,
                 )
-                if filename.is_absolute():
-                    yaml_file_value = output.as_posix()
-                else:
-                    yaml_file_value = f"./{output.as_posix()}"
+                yaml_file_value = f"./{output.as_posix()}"
 
                 result[slot_name] = {
                     "source": [
