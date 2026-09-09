@@ -317,13 +317,22 @@ class YamlGraphSerializer:
 
 
 class XarrayGraphSerializer:
+    """Serialize an ObjectGraph into an xarray DataTree hierarchy.
+
+    Scalar-valued attributes are stored as dataset attributes, array-valued
+    attributes become xarray DataArrays, and object-valued attributes become
+    child DataTree nodes.
+    """
+
     def __init__(
         self,
         graph: ObjectGraph,
     ):
+        """Initialize the serializer."""
         self.graph = graph
 
     def serialize(self) -> DataTree:
+        """Serialize the complete ObjectGraph to an xarray DataTree."""
         if self.graph.root is None:
             raise ValueError("ObjectGraph has no root node.")
 
@@ -334,6 +343,23 @@ class XarrayGraphSerializer:
         self,
         node: GraphNode,
     ) -> DataTree:
+        """Serialize a graph node and its children to a DataTree node.
+
+        Scalar values are stored as dataset attributes. Array valued child
+        nodes are represented as coordinates or data variables, while other
+        child nodes are recursively represented as nested DataTree nodes.
+
+        Parameters
+        ----------
+        node
+            Graph node to serialize.
+
+        Returns
+        -------
+        DataTree
+            DataTree node representing the supplied graph node and its
+            descendants.
+        """
         attrs: dict[str, Any] = {}
         coords: dict[str, xr.DataArray] = {}
         data_vars: dict[str, xr.DataArray] = {}
@@ -403,12 +429,41 @@ class XarrayGraphSerializer:
     def _is_array_node(
         node: GraphNode,
     ) -> bool:
+        """Return whether a graph node contains an array-valued attribute.
+
+        Parameters
+        ----------
+        node
+            Graph node to inspect.
+
+        Returns
+        -------
+        bool
+            `True` if the node contains an array-valued attribute.
+        """
         return any(metadata.is_array for metadata in node.value_metadata.values())
 
     @staticmethod
     def _find_array_value(
         node: GraphNode,
     ) -> tuple[str, Any]:
+        """Return the first array-valued attribute stored on a graph node.
+
+        Parameters
+        ----------
+        node
+            Graph node to inspect.
+
+        Returns
+        -------
+        tuple[str, Any]
+            Name and value of the array-valued attribute.
+
+        Raises
+        ------
+        ValueError
+            If the node does not contain an array-valued attribute.
+        """
         # TODO: works for now, but can we expect multiple arrays in a node?
         for name, value in node.values.items():
             if node.value_metadata[name].is_array:
@@ -422,6 +477,26 @@ class XarrayGraphSerializer:
         slot_name: str,
         value: Any,
     ) -> tuple[str, ...]:
+        """Determine xarray dimensions for an array-valued graph attribute.
+
+        Declared graph dimensions are used when their number matches the
+        dimensionality of the array. Otherwise, generic dimension names are
+        generated.
+
+        Parameters
+        ----------
+        node
+            Graph node containing the array-valued attribute.
+        slot_name
+            Name of the array-valued attribute.
+        value
+            Array value whose dimensions are determined.
+
+        Returns
+        -------
+        tuple[str, ...]
+            Dimension names to use for the xarray DataArray.
+        """
         data = np.asarray(value)
         dimensions = node.value_metadata[slot_name].dimensions
 
@@ -437,7 +512,25 @@ class XarrayGraphSerializer:
         value: Any,
         attrs: dict[str, Any] | None = None,
     ) -> xr.DataArray:
-        """Construct a DataArray for an array-valued graph value."""
+        """Construct a DataArray for an array-valued graph attribute.
+
+        Parameters
+        ----------
+        node
+            Graph node containing the array-valued attribute.
+        slot_name
+            Name of the array-valued attribute.
+        value
+            Array value to store in the DataArray.
+        attrs
+            Optional attributes to attach to the DataArray.
+
+        Returns
+        -------
+        xr.DataArray
+            DataArray containing the supplied value and graph-derived
+            dimensions.
+        """
         data = np.asarray(value)
 
         return xr.DataArray(

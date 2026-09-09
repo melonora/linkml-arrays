@@ -39,6 +39,11 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def normalize_source_paths(value):
+    """Normalize file references by replacing paths with their filenames.
+
+    Recursively traverses dictionaries and lists, replacing values associated
+    with `file` keys with the filename component of the path.
+    """
     if isinstance(value, dict):
         return {
             key: (Path(item).name if key == "file" else normalize_source_paths(item))

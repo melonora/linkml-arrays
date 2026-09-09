@@ -41,6 +41,7 @@ class XarrayNetCDFDumper(Dumper):
         )
 
     def dumps(self, element: Union[YAMLRoot, BaseModel], **kwargs):
+        """Raise an error because NetCDF serialization in this manner requires a file target."""
         raise NotImplementedError("This method is not sensible for this dumper.")
 
 
@@ -54,6 +55,7 @@ class XarrayZarrDumper(Dumper):
         schemaview: SchemaView,
         **kwargs,
     ):
+        """Dump the element to xarray zarr."""
         graph = ObjectGraph.from_root(
             element,
             schemaview,
@@ -66,10 +68,13 @@ class XarrayZarrDumper(Dumper):
         datatree.to_zarr(to_file)
 
     def dumps(self, element: Union[YAMLRoot, BaseModel], **kwargs):
+        """Raise an error because zarr serialization in this manner requires a file target."""
         raise NotImplementedError("This method is not sensible for this dumper.")
 
 
 class YamlXarrayNetCDFDumper(YamlArrayFileDumper):
+    """Dumper class for LinkML models to YAML with paths to xarray netcdf files."""
+
     FILE_SUFFIX = "_xarray.nc"
     FORMAT = "xarray_netcdf"
 
@@ -79,6 +84,17 @@ class YamlXarrayNetCDFDumper(YamlArrayFileDumper):
         array: Union[List, np.ndarray],
         output_file_path_no_suffix: Union[str, Path],
     ):
+        """Write an array to an xarray netcdf file.
+
+        The configured file suffix is appended to `output_file_path_no_suffix`.
+        The array is converted to an xarray DataArray and written using the
+        h5netcdf engine.
+
+        Returns
+        -------
+        Path
+            Path to the written netcdf file.
+        """
         if isinstance(output_file_path_no_suffix, str):
             output_file_path_no_suffix = Path(output_file_path_no_suffix)
 
@@ -95,6 +111,8 @@ class YamlXarrayNetCDFDumper(YamlArrayFileDumper):
 
 
 class YamlXarrayZarrDumper(YamlArrayFileDumper):
+    """Dumper class for LinkML models to YAML with paths to xarray zarr files."""
+
     FILE_SUFFIX = "_xarray.zarr"
     FORMAT = "xarray_zarr"
 
@@ -105,6 +123,17 @@ class YamlXarrayZarrDumper(YamlArrayFileDumper):
         output_file_path_no_suffix: Union[str, Path],
         mode: str = "w",
     ):
+        """Write an array to an xarray zarr store.
+
+        The configured file suffix is appended to `output_file_path_no_suffix`.
+        The array is converted to an xarray DataArray and written to a zarr store
+        using the specified write mode.
+
+        Returns
+        -------
+        Path
+            Path to the written zarr store.
+        """
         if isinstance(output_file_path_no_suffix, str):
             output_file_path_no_suffix = Path(output_file_path_no_suffix)
 

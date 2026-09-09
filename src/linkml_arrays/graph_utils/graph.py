@@ -73,6 +73,7 @@ class GraphValueMetadata:
 
     @property
     def is_array(self) -> bool:
+        """Return True if graph value is an array."""
         return self.dimensions is not None
 
 
@@ -472,6 +473,35 @@ class ObjectGraph:
         schemaview: SchemaView,
         root_class: str,
     ) -> "ObjectGraph":
+        """Construct an ObjectGraph from an xarray DataTree representation of a LinkML model.
+
+        Traverses an xarray DataTree and constructs a graph representation in
+        which each nested LinkML class instance becomes a graph node. Dataset
+        attributes and array values are stored directly on nodes, while nested
+        class-valued attributes become directed graph edges.
+
+        The LinkML schema is used to determine how DataTree nodes, variables,
+        coordinates, and attributes map to classes and slots in the graph.
+
+        Parameters
+        ----------
+        source
+            DataTree containing the serialized LinkML model.
+        schemaview
+            SchemaView describing the LinkML schema.
+        root_class
+            Name of the LinkML root class represented by the DataTree.
+
+        Returns
+        -------
+        ObjectGraph
+            Graph representation of the LinkML model described by the DataTree.
+
+        Raises
+        ------
+        ValueError
+            If `root_class` is not defined in the schema.
+        """
         graph = cls()
 
         schema_class = schemaview.get_class(root_class)
