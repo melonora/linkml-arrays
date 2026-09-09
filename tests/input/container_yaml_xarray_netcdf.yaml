@@ -2,26 +2,26 @@ latitude_series:
   name: my_latitude
   values:
     source:
-    - file: C:/Users/Yuyao/PycharmProjects/PythonProject/linkml-arrays/tests/input/xarray_netcdf/my_latitude.values_xarray.nc
+    - file: ./out/my_latitude.values_xarray.nc
       format: xarray_netcdf
 longitude_series:
   name: my_longitude
   values:
     source:
-    - file: C:/Users/Yuyao/PycharmProjects/PythonProject/linkml-arrays/tests/input/xarray_netcdf/my_longitude.values_xarray.nc
+    - file: ./out/my_longitude.values_xarray.nc
       format: xarray_netcdf
 name: my_container
 temperature_dataset:
   date:
     values:
       source:
-      - file: C:/Users/Yuyao/PycharmProjects/PythonProject/linkml-arrays/tests/input/xarray_netcdf/my_temperature.date.values_xarray.nc
+      - file: ./out/my_temperature.date.values_xarray.nc
         format: xarray_netcdf
   day_in_d:
     reference_date: '2020-01-01'
     values:
       source:
-      - file: C:/Users/Yuyao/PycharmProjects/PythonProject/linkml-arrays/tests/input/xarray_netcdf/my_temperature.day_in_d.values_xarray.nc
+      - file: ./out/my_temperature.day_in_d.values_xarray.nc
         format: xarray_netcdf
   latitude_in_deg: my_latitude
   longitude_in_deg: my_longitude
@@ -30,5 +30,5 @@ temperature_dataset:
     conversion_factor: 1000.0
     values:
       source:
-      - file: C:/Users/Yuyao/PycharmProjects/PythonProject/linkml-arrays/tests/input/xarray_netcdf/my_temperature.temperatures_in_K.values_xarray.nc
+      - file: ./out/my_temperature.temperatures_in_K.values_xarray.nc
         format: xarray_netcdf

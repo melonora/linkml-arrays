@@ -127,7 +127,8 @@ def test_xarray_netcdf_loader():
 def test_yaml_array_file_loader_xarray_zarr():
     """Test loading of pydantic-style classes from YAML + xarrays stored as .zarr."""
     read_yaml = hbread("container_yaml_xarray_zarr.yaml", base_path=str(Path(__file__) / "../../input"))
-    schemaview = SchemaView(Path(__file__).parent.parent / "input/temperature_schema.yaml")
+    schemaview = SchemaView(Path(__file__) / "../../input/temperature_schema.yaml")
+
     container = YamlLoader().loads(
         read_yaml, target_class=Container, schemaview=schemaview, resolve_arrays=True
     )

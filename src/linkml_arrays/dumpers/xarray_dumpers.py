@@ -102,6 +102,7 @@ class YamlXarrayZarrDumper(YamlArrayFileDumper):
         cls,
         array: Union[List, np.ndarray],
         output_file_path_no_suffix: Union[str, Path],
+        mode: str = "w",
     ):
         if isinstance(output_file_path_no_suffix, str):
             output_file_path_no_suffix = Path(output_file_path_no_suffix)
@@ -111,5 +112,5 @@ class YamlXarrayZarrDumper(YamlArrayFileDumper):
         )
 
         data_array = xr.DataArray(data=np.asarray(array))
-        data_array.to_zarr(output_file_path)
+        data_array.to_zarr(output_file_path, mode=mode)
         return output_file_path
