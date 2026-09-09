@@ -249,43 +249,37 @@ def test_xarray_netcdf_dumper(tmp_path):
     assert datatree["temperature_dataset"].attrs["latitude_in_deg"] == "my_latitude"
     assert datatree["temperature_dataset"].attrs["longitude_in_deg"] == "my_longitude"
 
-def test_yaml_xarray_zarr_dumper(tmp_path):
+def test_yaml_xarray_zarr_dumper():
     """Test YamlXarrayDumper dumping to a YAML file and zarr datasets in a directory."""
     container = _create_container()
-
-    output_yaml = tmp_path / "container_yaml_xarray_zarr.yaml"
     schemaview = SchemaView(INPUT_DIR / "temperature_schema.yaml")
 
-    YamlXarrayZarrDumper().dump(
+    ret = YamlXarrayZarrDumper().dumps(
         container,
-        to_file=output_yaml,
         schemaview=schemaview,
-        output_dir=tmp_path / "xarray_zarr"
+        output_dir=OUTPUT_DIR
     )
+
     expected_yaml_file = INPUT_DIR / "container_yaml_xarray_zarr.yaml"
     yaml = YAML(typ="safe")
-
-    with open(output_yaml) as f_actual, open(expected_yaml_file) as f_expected:
-        actual = yaml.load(f_actual)
+    with open(expected_yaml_file) as f_expected:
+        actual = yaml.load(ret)
         expected = yaml.load(f_expected)
 
     assert normalize_source_paths(actual) == normalize_source_paths(expected)
 
-def test_yaml_xarray_netcdf_dumper(tmp_path):
+def test_yaml_xarray_netcdf_dumper():
     """Test YamlXarrayNetCDFDumper dumping to a YAML file and netcdf datasets in a directory."""
     container = _create_container()
 
-    output_yaml = tmp_path / "container_yaml_xarray_netcdf.yaml"
-    output_dir = tmp_path / "xarray_netcdf"
-    output_dir.mkdir(parents=True, exist_ok=True)
     schemaview = SchemaView(INPUT_DIR / "temperature_schema.yaml")
-    YamlXarrayNetCDFDumper().dump(container, to_file=output_yaml, schemaview=schemaview, output_dir=output_dir)
+    ret = YamlXarrayNetCDFDumper().dumps(container, schemaview=schemaview, output_dir=OUTPUT_DIR)
 
     # read and compare with the expected YAML file ignoring order of keys
     expected_yaml_file = INPUT_DIR / "container_yaml_xarray_netcdf.yaml"
     yaml = YAML(typ="safe")
-    with open(output_yaml) as f_actual, open(expected_yaml_file) as f_expected:
+    with open(expected_yaml_file) as f_actual:
         actual = yaml.load(f_actual)
-        expected = yaml.load(f_expected)
+        expected = yaml.load(ret)
     assert normalize_source_paths(actual) == normalize_source_paths(expected)
 
