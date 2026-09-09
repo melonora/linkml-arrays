@@ -1,15 +1,17 @@
+"""Classes for dumping a LinkML model to YAML with paths to xarray zarr, netcdf or YAML files."""
+
 from pathlib import Path
-from typing import Union, List
+from typing import List, Union
 
 import numpy as np
+import xarray as xr
 from linkml_runtime import SchemaView
+from linkml_runtime.dumpers.dumper_root import Dumper
 from linkml_runtime.utils.yamlutils import YAMLRoot
 from pydantic import BaseModel
 
-import xarray as xr
 from linkml_arrays.dumpers.yaml_array_file_dumper import YamlArrayFileDumper
 from linkml_arrays.graph_utils.graph import ObjectGraph
-from linkml_runtime.dumpers.dumper_root import Dumper
 from linkml_arrays.graph_utils.serializers import XarrayGraphSerializer
 
 
@@ -23,6 +25,7 @@ class XarrayNetCDFDumper(Dumper):
         schemaview: SchemaView,
         **kwargs,
     ):
+        """Dump the element to xarray netcdf."""
         graph = ObjectGraph.from_root(
             element,
             schemaview,
@@ -38,9 +41,8 @@ class XarrayNetCDFDumper(Dumper):
         )
 
     def dumps(self, element: Union[YAMLRoot, BaseModel], **kwargs):
-        raise NotImplementedError(
-            "This method is not sensible for this dumper."
-        )
+        raise NotImplementedError("This method is not sensible for this dumper.")
+
 
 class XarrayZarrDumper(Dumper):
     """Dump a LinkML model to Zarr through an ObjectGraph."""
@@ -64,9 +66,8 @@ class XarrayZarrDumper(Dumper):
         datatree.to_zarr(to_file)
 
     def dumps(self, element: Union[YAMLRoot, BaseModel], **kwargs):
-        raise NotImplementedError(
-            "This method is not sensible for this dumper."
-        )
+        raise NotImplementedError("This method is not sensible for this dumper.")
+
 
 class YamlXarrayNetCDFDumper(YamlArrayFileDumper):
     FILE_SUFFIX = "_xarray.nc"

@@ -44,18 +44,17 @@ from uuid import UUID, uuid4
 import h5py
 import numpy as np
 import xarray as xr
-from xarray import DataTree
-
 import yaml
 import zarr
 from linkml_runtime import SchemaView
 from linkml_runtime.linkml_model import ClassDefinition
 from pydantic import BaseModel
+from xarray import DataTree
 
 
 @dataclass(slots=True)
 class GraphValueMetadata:
-    """ Describe properties of a value stored in an ObjectGraph.
+    """Describe properties of a value stored in an ObjectGraph.
 
     GraphValueMetadata contains backend-independent information needed to
     interpret a value without referring back to its LinkML schema. When an
@@ -68,6 +67,7 @@ class GraphValueMetadata:
 
     Note: while only including dimensions currently, this could be expanded
     """
+
     # TODO: we should discuss what extra general fields could be useful here I think
     dimensions: tuple[str, ...] | None = None
 
@@ -446,9 +446,7 @@ class ObjectGraph:
                     data = yaml.safe_load(source)
                     base_path = Path(".")
         else:
-            raise ValueError(
-                f"Source should be of type Path or str, got {type(source)}"
-            )
+            raise ValueError(f"Source should be of type Path or str, got {type(source)}")
 
         schema_class = schemaview.get_class(root_class)
 
@@ -469,19 +467,17 @@ class ObjectGraph:
 
     @classmethod
     def from_xarray(
-            cls,
-            source: DataTree,
-            schemaview: SchemaView,
-            root_class: str,
+        cls,
+        source: DataTree,
+        schemaview: SchemaView,
+        root_class: str,
     ) -> "ObjectGraph":
         graph = cls()
 
         schema_class = schemaview.get_class(root_class)
 
         if not schema_class:
-            raise ValueError(
-                f"Root class {root_class} not found in schema."
-            )
+            raise ValueError(f"Root class {root_class} not found in schema.")
 
         root = graph._discover_xarray_node(
             tree=source,
@@ -728,10 +724,10 @@ class ObjectGraph:
         return node
 
     def _discover_xarray_node(
-            self,
-            tree: DataTree,
-            class_definition: ClassDefinition,
-            schemaview: SchemaView,
+        self,
+        tree: DataTree,
+        class_definition: ClassDefinition,
+        schemaview: SchemaView,
     ) -> GraphNode:
         node = GraphNode(
             class_name=class_definition.name,
@@ -753,8 +749,7 @@ class ObjectGraph:
             child_class = schemaview.get_class(slot.range)
             if child_class is None:
                 raise ValueError(
-                    f"Slot '{name}' on {class_definition.name} "
-                    "does not have a class range."
+                    f"Slot '{name}' on {class_definition.name} " "does not have a class range."
                 )
 
             child = self._discover_xarray_array(
@@ -783,8 +778,7 @@ class ObjectGraph:
 
             if child_class is None:
                 raise ValueError(
-                    f"Expected slot '{name}' on "
-                    f"{class_definition.name} to have a class range."
+                    f"Expected slot '{name}' on " f"{class_definition.name} to have a class range."
                 )
 
             child = self._discover_xarray_node(
@@ -805,10 +799,10 @@ class ObjectGraph:
         return node
 
     def _discover_xarray_array(
-            self,
-            array: xr.DataArray,
-            class_definition: ClassDefinition,
-            schemaview: SchemaView,
+        self,
+        array: xr.DataArray,
+        class_definition: ClassDefinition,
+        schemaview: SchemaView,
     ) -> GraphNode:
         node = GraphNode(
             class_name=class_definition.name,
@@ -827,9 +821,7 @@ class ObjectGraph:
                 break
 
         if array_slot is None:
-            raise ValueError(
-                f"{class_definition.name} has no array-valued slot."
-            )
+            raise ValueError(f"{class_definition.name} has no array-valued slot.")
 
         node.values[str(array_slot.name)] = array.values
 
@@ -1046,11 +1038,11 @@ class ObjectGraph:
         return node
 
     def _set_value(
-            self,
-            node: GraphNode,
-            name: str,
-            value: Any,
-            slot,
+        self,
+        node: GraphNode,
+        name: str,
+        value: Any,
+        slot,
     ) -> None:
         name = str(name)
         node.values[name] = value
@@ -1137,12 +1129,12 @@ class ObjectGraph:
             )
 
     def _add_child(
-            self,
-            parent: GraphNode,
-            child_obj: BaseModel,
-            slot,
-            schemaview: SchemaView,
-            multivalued: bool,
+        self,
+        parent: GraphNode,
+        child_obj: BaseModel,
+        slot,
+        schemaview: SchemaView,
+        multivalued: bool,
     ) -> None:
         child = self._discover(child_obj, schemaview)
 

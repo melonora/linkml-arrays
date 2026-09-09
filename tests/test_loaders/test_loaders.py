@@ -4,15 +4,13 @@ from pathlib import Path
 
 from hbreader import hbread
 from linkml_runtime import SchemaView
-from tox.tox_env.python.dependency_groups import resolve
 
-from linkml_arrays.dumpers.xarray_dumpers import YamlXarrayZarrDumper, YamlXarrayNetCDFDumper
 from linkml_arrays.loaders import (
     Hdf5Loader,
     YamlLoader,
     ZarrDirectoryStoreLoader,
 )
-from linkml_arrays.loaders.xarray_loaders import XarrayZarrLoader, XarrayNetCDFLoader
+from linkml_arrays.loaders.xarray_loaders import XarrayNetCDFLoader, XarrayZarrLoader
 from tests.array_classes_lol import (
     Container,
     DateSeries,
@@ -126,7 +124,9 @@ def test_xarray_netcdf_loader():
 
 def test_yaml_array_file_loader_xarray_zarr():
     """Test loading of pydantic-style classes from YAML + xarrays stored as .zarr."""
-    read_yaml = hbread("container_yaml_xarray_zarr.yaml", base_path=str(Path(__file__) / "../../input"))
+    read_yaml = hbread(
+        "container_yaml_xarray_zarr.yaml", base_path=str(Path(__file__) / "../../input")
+    )
     schemaview = SchemaView(Path(__file__) / "../../input/temperature_schema.yaml")
 
     container = YamlLoader().loads(
@@ -137,7 +137,9 @@ def test_yaml_array_file_loader_xarray_zarr():
 
 def test_yaml_array_file_loader_xarray_netcdf():
     """Test loading of pydantic-style classes from YAML + xarrays stored as .nc."""
-    read_yaml = hbread("container_yaml_xarray_netcdf.yaml", base_path=str(Path(__file__) / "../../input"))
+    read_yaml = hbread(
+        "container_yaml_xarray_netcdf.yaml", base_path=str(Path(__file__) / "../../input")
+    )
     schemaview = SchemaView(Path(__file__).parent.parent / "input/temperature_schema.yaml")
     container = YamlLoader().loads(
         read_yaml, target_class=Container, schemaview=schemaview, resolve_arrays=True

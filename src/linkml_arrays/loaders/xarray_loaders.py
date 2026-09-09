@@ -2,8 +2,8 @@ from pathlib import Path
 from typing import Type, Union
 
 from linkml_runtime import SchemaView
-from linkml_runtime.utils.yamlutils import YAMLRoot
 from linkml_runtime.loaders.loader_root import Loader
+from linkml_runtime.utils.yamlutils import YAMLRoot
 from pydantic import BaseModel
 from xarray import open_datatree
 
@@ -42,7 +42,7 @@ class XarrayZarrLoader(Loader):
             target_class=target_class,
         ).deserialize(target_class)
 
-    
+
 class XarrayNetCDFLoader(Loader):
     def load_any(self, source: str, **kwargs):
         return self.load(source, **kwargs)

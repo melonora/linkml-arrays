@@ -14,11 +14,10 @@ from uuid import UUID
 
 import h5py
 import numpy as np
-import zarr
 import xarray as xr
-from xarray import DataTree
-from linkml_runtime import SchemaView
+import zarr
 from pydantic import BaseModel
+from xarray import DataTree
 
 from linkml_arrays.graph_utils.graph import GraphNode, ObjectGraph
 
@@ -78,7 +77,7 @@ class YAMLGraphArraySerializer:
 
         raise ValueError(f"Cannot determine filename for {node.class_name}")
 
-    def serialize(self, dir_path = None):
+    def serialize(self, dir_path=None):
         """Serialize the graph into a nested YAML-compatible dictionary.
 
         Nodes are serialized in dependency order so that referenced child
@@ -316,6 +315,7 @@ class YamlGraphSerializer:
 
         return result
 
+
 class XarrayGraphSerializer:
     def __init__(
         self,
@@ -403,23 +403,18 @@ class XarrayGraphSerializer:
     def _is_array_node(
         node: GraphNode,
     ) -> bool:
-        return any(
-            metadata.is_array
-            for metadata in node.value_metadata.values()
-        )
+        return any(metadata.is_array for metadata in node.value_metadata.values())
 
     @staticmethod
     def _find_array_value(
-            node: GraphNode,
+        node: GraphNode,
     ) -> tuple[str, Any]:
         # TODO: works for now, but can we expect multiple arrays in a node?
         for name, value in node.values.items():
             if node.value_metadata[name].is_array:
                 return name, value
 
-        raise ValueError(
-            f"{node.class_name} does not contain an array-valued value."
-        )
+        raise ValueError(f"{node.class_name} does not contain an array-valued value.")
 
     @staticmethod
     def _array_dims(
