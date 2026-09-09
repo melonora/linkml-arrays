@@ -196,6 +196,7 @@ def test_zarr_directory_store_dumper(tmp_path):
 
 
 def test_xarray_zarr_dumper(tmp_path):
+    """Test XarrayZarrDumper dumping to an xarray zarr file."""
     container = _create_container()
     schemaview = SchemaView(INPUT_DIR / "temperature_schema.yaml")
     output_file_path = tmp_path / "my_container_xarray.zarr"
@@ -229,6 +230,7 @@ def test_xarray_zarr_dumper(tmp_path):
 
 
 def test_xarray_netcdf_dumper(tmp_path):
+    """Test XarrayNetCDFDumper dumping to an xarray netcdf file."""
     container = _create_container()
     schemaview = SchemaView(INPUT_DIR / "temperature_schema.yaml")
     output_file_path = tmp_path / "my_container.nc"
