@@ -34,7 +34,7 @@ responsible for their own storage-specific layout.
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Iterable
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from graphlib import TopologicalSorter
 from pathlib import Path
