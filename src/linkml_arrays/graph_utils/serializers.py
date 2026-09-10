@@ -383,7 +383,7 @@ class XarrayGraphSerializer:
                 array_slot_name, value = self._find_array_value(child)
                 data = np.asarray(value)
 
-                metadata = {
+                filter_metadata = {
                     name: child_value
                     for name, child_value in child.values.items()
                     if name != array_slot_name
@@ -398,7 +398,7 @@ class XarrayGraphSerializer:
                     coords[edge.slot_name] = xr.DataArray(
                         data=data,
                         dims=dims,
-                        attrs=metadata,
+                        attrs=filter_metadata,
                     )
 
                 else:
@@ -406,7 +406,7 @@ class XarrayGraphSerializer:
                         node=child,
                         slot_name=array_slot_name,
                         value=data,
-                        attrs=metadata,
+                        attrs=filter_metadata,
                     )
 
             else:

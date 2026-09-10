@@ -34,7 +34,7 @@ responsible for their own storage-specific layout.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Iterable
 from dataclasses import dataclass, field
 from graphlib import TopologicalSorter
 from pathlib import Path
@@ -1141,6 +1141,7 @@ class ObjectGraph:
             )
             return
 
+        values: Iterable[Any] | list[Any] | tuple[Any, ...] | set[Any]
         if isinstance(value, dict):
             values = value.values()
         elif isinstance(value, (list, tuple, set)):
