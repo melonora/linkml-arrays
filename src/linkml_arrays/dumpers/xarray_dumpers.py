@@ -81,7 +81,7 @@ class YamlXarrayNetCDFDumper(YamlArrayFileDumper):
     @classmethod
     def write_array(
         cls,
-        array: Union[List, np.ndarray],
+        array: Union[List[List[int]], np.ndarray],
         output_file_path_no_suffix: Union[str, Path],
     ):
         """Write an array to an xarray netcdf file.
