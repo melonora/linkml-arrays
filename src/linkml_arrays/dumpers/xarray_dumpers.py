@@ -21,7 +21,7 @@ class XarrayNetCDFDumper(Dumper):
     def dump(
         self,
         element: Union[YAMLRoot, BaseModel],
-        to_file: str,
+        to_file: str | Path,
         schemaview: SchemaView,
         **kwargs,
     ):
